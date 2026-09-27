@@ -159,6 +159,32 @@ TZ=America/Chicago"><?= $escape($envText ?? '') ?></textarea>
                     </form>
                 </section>
 
+                <section class="panel stack-runtime-panel">
+                    <div class="panel-heading"><div><span class="eyebrow">Runtime</span><h2>Stack Runtime &amp; Docker Inspect</h2></div><span class="count-badge"><?= (int) $selected['containerCount'] ?> containers</span></div>
+                    <?php if (($selected['containers'] ?? []) === []): ?>
+                        <div class="empty compact"><strong>No stack containers exist yet</strong><span>Runtime details will appear after the stack creates containers.</span></div>
+                    <?php else: ?>
+                        <div class="runtime-container-list">
+                        <?php foreach ($selected['containers'] as $container): ?>
+                            <?php $details = $stackContainerDetails[(string) $container['id']] ?? ['mounts' => [], 'networks' => []]; ?>
+                            <article class="runtime-container-card">
+                                <div class="runtime-container-title"><div><span class="container-state <?= $escape($container['state']) ?>"><span class="status-dot"></span><?= $escape($container['status']) ?></span><h3><?= $escape($container['name']) ?></h3><small><?= $escape($container['image']) ?></small></div><a class="button button-secondary button-small" href="/?container=<?= urlencode($container['name']) ?>">Container Details</a></div>
+                                <div class="info-grid runtime-info-grid">
+                                    <div><span>Ports</span><strong><?= $escape($container['ports'] ?: 'No published ports') ?></strong></div>
+                                    <div><span>Restart policy</span><strong><?= $escape($details['restartPolicy'] ?? 'Unknown') ?></strong></div>
+                                    <div><span>Privileged</span><strong><?= !empty($details['privileged']) ? 'Yes' : 'No' ?></strong></div>
+                                    <div><span>Read-only rootfs</span><strong><?= !empty($details['readOnlyRootfs']) ? 'Yes' : 'No' ?></strong></div>
+                                </div>
+                                <div class="runtime-detail-grid">
+                                    <div><h4>Networks</h4><?php if (($details['networks'] ?? []) === []): ?><p class="muted-cell">None reported</p><?php else: ?><?php foreach ($details['networks'] as $network): ?><p><strong><?= $escape($network['name']) ?></strong><small><?= $escape($network['ipAddress'] !== '' ? $network['ipAddress'] : 'no IP') ?></small></p><?php endforeach; ?><?php endif; ?></div>
+                                    <div><h4>Mounts</h4><?php if (($details['mounts'] ?? []) === []): ?><p class="muted-cell">None reported</p><?php else: ?><?php foreach ($details['mounts'] as $mount): ?><p><strong><?= $escape(strtoupper((string) $mount['type'])) ?><?= !empty($mount['rw']) ? ' · RW' : ' · RO' ?></strong><small><?= $escape(($mount['source'] ?: '(Docker managed)') . ' → ' . $mount['destination']) ?></small></p><?php endforeach; ?><?php endif; ?></div>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
                 <section class="panel">
                     <div class="panel-heading">
                         <div><span class="eyebrow">Logs</span><h2>Stack Logs</h2></div>

@@ -55,6 +55,19 @@ if ($selectedStackName !== '') {
         $stackLogs = $docker['available']
             ? $composeClient->logs($selectedStackName, 250)
             : ['output' => 'Docker Engine unavailable.'];
+
+        // Runtime summaries for managed stack containers. This mirrors the
+        // useful inspect data on external-container pages without exposing Env.
+        $stackContainerDetails = [];
+        if ($docker['available']) {
+            foreach (($selected['containers'] ?? []) as $stackContainer) {
+                try {
+                    $stackContainerDetails[(string) $stackContainer['id']] = $dockerClient->inspect((string) $stackContainer['id']);
+                } catch (Throwable) {
+                    $stackContainerDetails[(string) $stackContainer['id']] = ['mounts' => [], 'networks' => []];
+                }
+            }
+        }
     }
 
     require dirname(__DIR__) . '/templates/stack.php';

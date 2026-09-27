@@ -17,8 +17,17 @@ $dockerClient = new Docker();
 $containerName = trim((string) ($_GET['container'] ?? ''));
 $requestedTarget = trim((string) ($_GET['target'] ?? ''));
 $container = $containerName !== '' ? $dockerClient->container($containerName) : null;
-$hostEnabled = strtolower((string) (getenv('DOCKERMANGER_HOST_SHELL_ENABLED') ?: 'false')) === 'true';
-$consoleEnabled = strtolower((string) (getenv('DOCKERMANGER_ENABLE_CONSOLE') ?: 'true')) === 'true';
+$envBool = static function (string $name, bool $default = false): bool {
+    $raw = getenv($name);
+    if ($raw === false || trim((string) $raw) === '') return $default;
+    return in_array(strtolower(trim((string) $raw)), ['1', 'true', 'yes', 'on'], true);
+};
+$hostEnabled = $envBool('DOCKERMANGER_HOST_SHELL_ENABLED', false);
+$consoleEnabled = $envBool('DOCKERMANGER_ENABLE_CONSOLE', true);
+$hostSshHost = (string) (getenv('DOCKERMANGER_HOST_SSH_HOST') ?: 'host.docker.internal');
+$hostSshPort = (string) (getenv('DOCKERMANGER_HOST_SSH_PORT') ?: '22');
+$hostSshUser = (string) (getenv('DOCKERMANGER_HOST_SSH_USER') ?: 'root');
+$hostSshKey = trim((string) (getenv('DOCKERMANGER_HOST_SSH_KEY') ?: ''));
 
 if ($containerName !== '' && $container === null) {
     http_response_code(404);
@@ -71,7 +80,22 @@ if ($container !== null) {
             <?php endif; ?>
         </section>
         <?php if ($container === null && $target === 'host'): ?>
-            <div class="notice notice-warning"><strong>SSH-backed host session</strong><span>Connecting as <?= $escape(getenv('DOCKERMANGER_HOST_SSH_USER') ?: 'root') ?>@<?= $escape(getenv('DOCKERMANGER_HOST_SSH_HOST') ?: 'host.docker.internal') ?>:<?= $escape(getenv('DOCKERMANGER_HOST_SSH_PORT') ?: '22') ?>. Commands run with that host account's privileges.</span></div>
+            <div class="notice notice-warning"><strong>SSH-backed host session</strong><span>Connecting as <?= $escape($hostSshUser) ?>@<?= $escape($hostSshHost) ?>:<?= $escape($hostSshPort) ?>. Commands run with that host account's privileges.</span></div>
+        <?php endif; ?>
+
+        <?php if ($container === null): ?>
+            <section class="panel host-console-summary">
+                <div class="panel-heading"><div><span class="eyebrow">Host SSH</span><h2>Host Console Configuration</h2></div><span class="validity <?= $hostEnabled ? 'good' : 'bad' ?>"><?= $hostEnabled ? 'Enabled' : 'Disabled' ?></span></div>
+                <div class="info-grid">
+                    <div><span>Target</span><strong><?= $escape($hostSshHost) ?></strong></div>
+                    <div><span>User</span><strong><?= $escape($hostSshUser) ?></strong></div>
+                    <div><span>Port</span><strong><?= $escape($hostSshPort) ?></strong></div>
+                    <div><span>Identity</span><strong><?= $hostSshKey !== '' ? $escape($hostSshKey) : 'Default SSH key / interactive password' ?></strong></div>
+                </div>
+                <?php if (!$hostEnabled): ?>
+                    <div class="notice notice-warning embedded-notice"><strong>Host SSH is disabled in this running container.</strong><span>Set <code>DOCKERMANGER_HOST_SHELL_ENABLED=true</code> in <code>dockerenvironment.env</code>, then recreate DockerManger with <code>docker compose up -d</code>. A clean-clone rebuild restores the repository default unless you edit the deployment env again.</span></div>
+                <?php endif; ?>
+            </section>
         <?php endif; ?>
 
         <?php if (!$consoleEnabled): ?>

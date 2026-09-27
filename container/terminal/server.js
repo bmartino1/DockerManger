@@ -14,8 +14,13 @@ const { WebSocketServer } = require('ws');
 
 const host = '127.0.0.1';
 const port = Number(process.env.DOCKERMANGER_TERMINAL_PORT || 3000);
-const enabled = String(process.env.DOCKERMANGER_ENABLE_CONSOLE || 'true').toLowerCase() === 'true';
-const hostShellEnabled = String(process.env.DOCKERMANGER_HOST_SHELL_ENABLED || 'false').toLowerCase() === 'true';
+const envBool = (name, fallback = false) => {
+  const raw = process.env[name];
+  if (raw === undefined || String(raw).trim() === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(raw).trim().toLowerCase());
+};
+const enabled = envBool('DOCKERMANGER_ENABLE_CONSOLE', true);
+const hostShellEnabled = envBool('DOCKERMANGER_HOST_SHELL_ENABLED', false);
 const containerPattern = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
 
 function shellForContainer(name) {
