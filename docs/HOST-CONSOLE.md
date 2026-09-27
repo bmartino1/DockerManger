@@ -2,7 +2,7 @@
 
 ## Current status
 
-The initial browser terminal is implemented with xterm.js plus a small Node/node-pty WebSocket helper. The helper listens only on container loopback; Nginx proxies the same-origin `/terminal-ws` endpoint.
+The browser terminal is implemented with xterm.js plus a small Node/node-pty WebSocket helper. The helper listens only on container loopback; Nginx proxies the same-origin `/terminal-ws` endpoint.
 
 The service accepts named targets only: the DockerManger shell, a validated Docker container name, or optional host SSH. It does not provide an arbitrary command HTTP endpoint.
 
@@ -108,7 +108,13 @@ DOCKERMANGER_HOST_SSH_USER=root
 DOCKERMANGER_HOST_SSH_KEY=
 ```
 
-Host-console access is disabled by default.
+Host-console access is disabled by default. Enable it in the deployment's `dockerenvironment.env`, then recreate the container with `docker compose up -d`. Verify what the running container actually received with:
+
+```bash
+docker compose exec dockermanger env | grep '^DOCKERMANGER_HOST'
+```
+
+A fresh/clean clone restores the repository default (`false`), so a deployment-specific `true` value must be reapplied if the checkout is replaced.
 
 `compose.yaml` provides:
 
@@ -262,17 +268,9 @@ These manual tests are useful for validating Docker socket access and verifying 
 
 ## Security boundary
 
-A browser terminal is more sensitive than the current read-only dashboard.
+A browser terminal is a privileged management surface. DockerManger currently exposes console targets in the UI for trusted deployments, but user authentication/authorization is not yet implemented. Keep console-enabled DockerManger deployments on a trusted LAN/VPN and do not expose them directly to the public Internet.
 
-Before terminal sessions are exposed through the UI, DockerManger needs an authorization/session boundary appropriate to the target:
-
-- local DockerManger shell;
-- managed-container shell;
-- Docker host SSH shell.
-
-The PTY/WebSocket service should not become a generic unauthenticated command socket.
-
-The PHP application should authorize session creation, while the terminal helper should focus on interactive I/O.
+The PTY/WebSocket service accepts fixed target types and must not become a generic command socket. The terminal helper should remain focused on interactive I/O; a future authentication layer should provide the user/session authorization boundary.
 
 ---
 

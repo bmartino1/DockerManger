@@ -103,6 +103,31 @@ docker compose up -d --build
 
 A deployment may also use Docker Compose's normal `.env` mechanism if desired. `dockerenvironment.env` remains DockerManger's documented in-container runtime configuration file.
 
+### Enabling the optional Host Console
+
+Host SSH is intentionally disabled in the repository defaults. To enable it for a deployment, set the following in `dockerenvironment.env` (adjust user/host/port as needed):
+
+```env
+DOCKERMANGER_HOST_SHELL_ENABLED=true
+DOCKERMANGER_HOST_SSH_HOST=host.docker.internal
+DOCKERMANGER_HOST_SSH_PORT=22
+DOCKERMANGER_HOST_SSH_USER=root
+```
+
+Then recreate the container so the changed `env_file:` values are loaded:
+
+```bash
+docker compose up -d
+```
+
+Verify the running container, rather than only the file on disk:
+
+```bash
+docker compose exec dockermanger env | grep '^DOCKERMANGER_HOST'
+```
+
+A clean clone restores the repository default (`DOCKERMANGER_HOST_SHELL_ENABLED=false`), so deployment-specific enablement must be reapplied when the checkout itself is replaced. DockerManger remains an SSH client only; the target host must run and secure its own SSH server.
+
 ---
 
 ## HTTPS deployment
@@ -324,7 +349,7 @@ docker compose logs --tail=100 dockermanger
 
 `arm/v7` / 32-bit Raspberry Pi OS is not currently a primary DockerManger target.
 
-> `linux/arm64` is a project target, but the complete image and every upstream image/package dependency still need successful real-world arm64 build testing before arm64 should be treated as release-verified.
+> The complete development image has been clean-built and runtime-smoke-tested on a 64-bit Raspberry Pi 4 (`linux/arm64`). A host warning that memory soft limits are unsupported may appear on some Pi/cgroup configurations; this does not prevent DockerManger from running when the container otherwise starts and becomes healthy.
 
 ---
 
@@ -347,7 +372,7 @@ data/
 
 The container entrypoint links `/root/.ssh` to `/data/ssh` when it is safe to do so.
 
-Do not commit runtime TLS private keys, SSH private keys, or user-created Compose content.
+Do not commit runtime TLS private keys, SSH client state/private keys, or user-created Compose content. The repository should contain only `data/certs/.gitkeep`, `data/ssh/.gitkeep`, and `data/compose_stacks/.gitkeep` as placeholders; `config` and `known_hosts` under `data/ssh` are runtime **files**, not placeholder directories.
 
 ---
 
@@ -383,16 +408,16 @@ These are deployment defaults, not hard architectural requirements. Administrato
 
 ## Docker Hub / prebuilt images
 
-A public Docker Hub and multi-architecture release workflow is still a work in progress.
+Local builds have now been verified on both `linux/amd64` and `linux/arm64`. Publishing and verifying a multi-architecture Docker Hub image is the next release step.
 
-Until that pipeline is finalized, the supported documentation path is:
+Until the Docker Hub repository/name and tags actually exist, the supported documentation path remains:
 
 ```text
 Git clone -> local docker compose build -> docker compose up
 ```
 
-Future Docker Hub instructions should be added only when the image name, tags, supported architectures, and release process are finalized.
+Add pull/tag instructions only after the registry artifact has been published and verified on both target architectures.
 
 ## Interactive shell convenience
 
-DockerManger installs `/etc/profile.d/dockermanger-mc.sh`. Interactive Bash shells therefore wrap Midnight Commander so exiting `mc` can change the parent shell to the directory selected in Midnight Commander. The wrapper calls the real `mc` executable and does not affect non-interactive services.
+DockerManger appends a small `mc_cd` helper and `mc` alias directly to `/etc/profile` during the image build. Interactive login Bash shells therefore let Midnight Commander return its final directory to the parent shell when `mc` exits. The wrapper calls the real `mc` executable with `command mc` and does not affect non-interactive services.

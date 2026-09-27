@@ -71,9 +71,13 @@ app/
 ├── public/
 │   ├── index.php
 │   ├── api.php
+│   ├── create.php
+│   ├── console.php
 │   ├── health.php
 │   ├── css/app.css
-│   └── js/app.js
+│   └── js/
+│       ├── app.js
+│       └── console.js
 ├── src/
 │   ├── bootstrap.php
 │   ├── Command.php
@@ -82,7 +86,9 @@ app/
 │   ├── Stack.php
 │   └── SystemInfo.php
 └── templates/
-    └── dashboard.php
+    ├── container.php
+    ├── dashboard.php
+    └── stack.php
 ```
 
 Responsibilities are separated as follows:
@@ -102,7 +108,7 @@ Command execution is kept behind named PHP methods. DockerManger must not expose
 
 ## Current API
 
-The current API is read-only:
+Read-only resources include:
 
 ```text
 GET /api.php?resource=system
@@ -110,9 +116,9 @@ GET /api.php?resource=containers
 GET /api.php?resource=stacks
 ```
 
-Future destructive actions should use explicit operations such as container start/stop/restart or stack up/down rather than passing raw Docker commands from the browser.
+State changes use POST requests with CSRF tokens and explicit named operations for stack/container lifecycle, Compose/`.env` saves, stack creation/deletion, and Composerize conversion. The browser does not submit arbitrary shell commands to the PHP API.
 
-Authentication, authorization, and CSRF protection belong in front of destructive actions.
+Authentication/authorization is still future work. Until it exists, the management UI and console should remain on a trusted LAN/VPN.
 
 ---
 
@@ -128,7 +134,7 @@ The current application uses Docker for:
 - Container status.
 - Docker Compose project labels.
 
-Future Docker operations should continue to be represented by explicit application methods.
+Docker operations continue to be represented by explicit application methods rather than arbitrary browser-supplied commands.
 
 The Docker socket is mounted at:
 
@@ -214,7 +220,7 @@ DockerManger currently has no application database. Compose project files remain
 
 The initial browser terminal is implemented as a small Node/node-pty WebSocket helper behind Nginx. xterm.js runs in the browser while PHP remains the application/control plane. The helper accepts only named local/container/host targets rather than arbitrary command strings.
 
-Planned flow:
+Current flow:
 
 ```text
 Browser
@@ -234,7 +240,7 @@ PTY helper
    +--> ssh <user>@host.docker.internal
 ```
 
-PHP remains the control plane. It should authorize terminal-session creation and decide which target the user is allowed to access. The PTY service should handle interactive terminal I/O, not become a second general application backend.
+PHP remains the control plane while the PTY service handles interactive terminal I/O and fixed named targets. The PTY helper must not become a second general application backend. A future authentication/authorization layer should add the user/session boundary before broader exposure.
 
 Container-console support should detect or gracefully fall back between shells such as `/bin/bash` and `/bin/sh`.
 
@@ -271,7 +277,7 @@ The arm64 target is intended to include 64-bit Raspberry Pi 4/5 deployments.
 
 `arm/v7` is not currently a primary target.
 
-Actual release support should be declared only after the complete image and its upstream base image/packages have been successfully built and tested for the target architecture.
+The complete development image has been clean-built and runtime-smoke-tested on both amd64 and arm64, including a 64-bit Raspberry Pi 4. Docker Hub multi-architecture publication/verification remains the release step before documenting registry pull instructions.
 
 ---
 
@@ -289,6 +295,6 @@ DockerManger should remain:
 
 ## Stack creation and environment files
 
-DockerManger-created stacks use `compose.yaml` plus the conventional `.env` file in the same stack directory. The create page can accept Compose directly or convert pasted `docker run` text with the bundled Composerize library. Conversion is a fixed-purpose transformation only; DockerManger does not execute the pasted Docker command. Both Compose and `.env` remain editable after creation.
+DockerManger-created stacks use `compose.yaml` plus the conventional `.env` file in the same stack directory. A top-level Compose `name:` is authoritative for stack/project identity when present; otherwise the DockerManger Stack Name field and stack directory define the project name. Service-level `container_name:` values never rename the stack. The create page can accept Compose directly or convert pasted `docker run` text with the bundled Composerize library. Conversion is a fixed-purpose transformation only; DockerManger does not execute the pasted Docker command. Both Compose and `.env` remain editable after creation.
 
 Destructive controls remain explicit named operations. `Down & Delete` first runs Compose down and only then removes the selected stack directory beneath `STACKS_DIR`. Container `Kill` maps only to the validated `docker kill <container>` operation.

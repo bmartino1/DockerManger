@@ -13,7 +13,7 @@ The project is being built around a deliberately small control plane:
 
 DockerManger is intended for trusted home/lab environments where a simple Docker/Compose workflow is preferred over a larger management platform.
 
-> **Development status:** DockerManger is under active development. The current application provides Docker/Compose discovery, controlled lifecycle actions, Compose creation/editing with validation, stack/container logs, standalone-container detail pages, and an initial xterm.js browser console. Authentication/authorization and additional console hardening remain future milestones; keep the UI on a trusted LAN/VPN.
+> **Development status:** DockerManger now has a working end-to-end development foundation on both amd64 and arm64: Docker/Compose discovery, controlled lifecycle actions, Compose creation/editing with validation, `.env` editing, Docker-run-to-Compose conversion, runtime/container inspection, logs, and xterm.js consoles for DockerManger and containers. Optional host SSH console support is included and is disabled by default. Authentication/authorization remains a future milestone, so keep the UI on a trusted LAN/VPN.
 
 ---
 
@@ -31,7 +31,7 @@ Current application behavior includes:
 - Docker Engine connectivity/status.
 - Docker client and server version reporting.
 - Container discovery using `docker ps -a`.
-- Container state, image, ports, and Compose-project association.
+- Container state, image, ports, Compose-project association, networks, and mount/volume inspection.
 - Compose stack discovery.
 - Recognition of:
   - `compose.yaml`
@@ -50,7 +50,7 @@ Current application behavior includes:
 - Compose create/edit with validation before replacing the live file.
 - Explicit stack Down & Delete and container Kill controls with browser confirmation.
 - Standalone/third-party container detail pages.
-- Initial xterm.js console targets for DockerManger, containers, and optional outbound host SSH.
+- xterm.js console targets for DockerManger, containers, and optional outbound host SSH.
 - JSON resources for system, container, stack, logs, and controlled actions.
 
 The current read-only API resources are:
@@ -108,8 +108,7 @@ DockerManger/
 │   └── scripts/
 │       ├── diagnostics.sh
 │       ├── entrypoint.sh
-│       ├── healthcheck.sh
-│       └── mc-cd.sh
+│       └── healthcheck.sh
 ├── data/
 │   ├── certs/.gitkeep
 │   ├── compose_stacks/.gitkeep
@@ -117,10 +116,13 @@ DockerManger/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DEPLOYMENT.md
-│   └── HOST-CONSOLE.md
+│   ├── HOST-CONSOLE.md
+│   └── RELEASE-CHECKLIST.md
 ├── Dockerfile
 ├── compose.yaml
-└── dockerenvironment.env
+├── dockerenvironment.env
+├── .gitignore
+└── .dockerignore
 ```
 
 ---
@@ -180,7 +182,7 @@ Expected persistent layout:
 └── compose_stacks/
 ```
 
-Runtime certificates, SSH keys, and user-created Compose content should not be committed to Git. DockerManger currently has no application database; Compose files remain the source of truth for managed stacks.
+Runtime certificates, SSH keys/known-host state, and user-created Compose content should not be committed to Git. The repository keeps only `.gitkeep` placeholders beneath the persistent data directories; `.gitignore` and `.dockerignore` prevent runtime material from being committed or baked into the image build context. DockerManger currently has no application database; Compose files remain the source of truth for managed stacks.
 
 ---
 
@@ -209,6 +211,8 @@ HOST_STACKS_DIR=/srv/docker/stacks docker compose up -d --build
 
 `STACKS_DIR` inside DockerManger should normally remain `/opt/stacks`.
 
+For stack identity, a top-level Compose `name:` is authoritative when present. Otherwise the DockerManger Stack Name field/project directory is authoritative. Service-level `container_name:` values identify containers and do not rename the stack.
+
 DockerManger needs write access to this mount for Compose creation/editing. By default the entrypoint uses filesystem ACLs to grant `www-data` read/write access while preserving host ownership. Set `DOCKERMANGER_MANAGE_STACK_PERMISSIONS=false` when the host administrator wants to manage those permissions entirely outside DockerManger. Avoid using `chmod 777` as the normal deployment model.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for deployment examples.
@@ -226,8 +230,8 @@ Important current settings include:
 | `TZ` | `America/Chicago` | Container/application timezone. |
 | `STACKS_DIR` | `/opt/stacks` | Stack directory inside DockerManger. |
 | `DOCKERMANGER_ENABLE_CONSOLE` | `true` | Enables the browser xterm.js + node-pty console subsystem. |
-| `DOCKERMANGER_TERMINAL_TYPE` | `xterm-256color` | Terminal type for future interactive shells. |
-| `DOCKERMANGER_CONSOLE_DEFAULT_TARGET` | `local` | Planned default terminal target. |
+| `DOCKERMANGER_TERMINAL_TYPE` | `xterm-256color` | Terminal type presented to interactive shells. |
+| `DOCKERMANGER_CONSOLE_DEFAULT_TARGET` | `local` | Default global-console target. |
 | `DOCKERMANGER_HOST_SHELL_ENABLED` | `false` | Optional host SSH console switch; currently disabled by default. |
 | `DOCKERMANGER_HOST_SSH_HOST` | `host.docker.internal` | Default outbound SSH target. |
 | `DOCKERMANGER_HOST_SSH_PORT` | `22` | Default outbound SSH port. |
@@ -354,7 +358,7 @@ aarch64  -> arm64 host
 
 The current development target for Raspberry Pi is a 64-bit OS. `arm/v7` is not a current primary target.
 
-> Multi-architecture support still needs to be verified through actual builds of the complete image and all upstream image/package dependencies on both `linux/amd64` and `linux/arm64`. Do not treat an architecture as release-tested until that build has been completed successfully.
+> The complete development image has been clean-built and runtime-smoke-tested on both `linux/amd64` (Debian/Proxmox LXC test host) and `linux/arm64` (64-bit Raspberry Pi 4). Docker Hub publication is the next release step; `arm/v7` remains outside the current primary target set.
 
 ---
 
@@ -370,7 +374,7 @@ Access to the Docker socket is effectively administrative access to the host Doc
 
 DockerManger should therefore be deployed only where that level of trust is appropriate. Keep the management UI on a trusted LAN/VPN and do not expose it directly to the public Internet.
 
-Authentication and CSRF protection are planned before destructive web controls are considered complete.
+State-changing web actions use CSRF tokens and explicit named operations. User authentication/authorization is not yet implemented, so DockerManger should remain on a trusted LAN/VPN.
 
 ---
 
@@ -392,7 +396,7 @@ Browser
                     +--> outbound ssh to the Docker host
 ```
 
-PHP remains the application/control plane and will be responsible for authorization/session creation. Node.js handles PTY/WebSocket I/O and the fixed-purpose Composerize conversion helper; PHP remains the application/control plane. Docker-run text is converted as data and is never executed by the conversion endpoint.
+PHP remains the application/control plane. Node.js handles PTY/WebSocket I/O and the fixed-purpose Composerize conversion helper. A future authentication layer should authorize access before privileged console sessions are exposed beyond a trusted LAN/VPN. Docker-run text is converted as data and is never executed by the conversion endpoint.
 
 DockerManger installs the **OpenSSH client only**. It does not expose an SSH server.
 
@@ -402,18 +406,15 @@ See [docs/HOST-CONSOLE.md](docs/HOST-CONSOLE.md).
 
 ## Development roadmap
 
-The current application is intentionally being built in stages.
+The core local-build feature set is now in place: controlled container and Compose lifecycle actions, Compose creation/editing and validation, `.env` handling, Composerize conversion, logs, runtime inspection, and browser PTY consoles. CSRF protection is present on state-changing web actions.
 
-Planned work includes:
+The next release work is intentionally narrow:
 
-1. Controlled container actions such as start, stop, and restart.
-2. Controlled Compose actions such as up, down, restart, and pull.
-3. Compose file viewing/editing with path containment and validation.
-4. Container/stack logs.
-5. Continue browser-console hardening, target controls, and terminal UX.
-6. Authentication, authorization, and CSRF protection before destructive UI operations.
-7. Persistent application settings only if a concrete feature later requires them.
-8. Certificate-management improvements and general UI quality-of-life work.
+1. Final regression testing of Host Console SSH with deployment-specific enablement.
+2. Publish and verify multi-architecture Docker Hub images for `linux/amd64` and `linux/arm64`.
+3. Add authentication/authorization before treating the UI as suitable for anything beyond a trusted LAN/VPN.
+4. Continue certificate-management and UI quality-of-life improvements only as concrete needs arise.
+5. Add persistent application settings only if a future feature actually requires them.
 
 The goal is to keep DockerManger understandable and maintainable rather than turning it into a large framework.
 
@@ -421,9 +422,11 @@ The goal is to keep DockerManger understandable and maintainable rather than tur
 
 ## Docker Hub
 
-A public Docker Hub/multi-architecture image workflow is a work in progress.
+The application has now been clean-built on both amd64 and arm64, and Docker Hub multi-architecture publication is the next release step.
 
-For now, the documented installation path is to clone the Git repository and build the image locally with Docker Compose. Image names/tags and registry instructions should be documented once the release/build pipeline is finalized.
+Until the image repository/name and tags are actually published and verified, the supported installation path remains cloning this Git repository and building locally with Docker Compose. Do not document a pull command or image tag until that published artifact exists.
+
+Use [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) for the final amd64/arm64 regression and publication gate.
 
 ---
 
