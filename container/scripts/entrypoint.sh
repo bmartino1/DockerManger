@@ -35,7 +35,6 @@ set -euo pipefail
 
 STACKS_DIR="${STACKS_DIR:-/opt/stacks}"
 
-HTTPS_ENABLED="${DOCKERMANGER_HTTPS_ENABLED:-true}"
 HTTPS_PORT="${DOCKERMANGER_HTTPS_PORT:-5443}"
 
 DATA_DIR="/data"
@@ -58,7 +57,7 @@ echo "Architecture : $(uname -m)"
 echo "Stacks       : ${STACKS_DIR}"
 echo "Data         : ${DATA_DIR}"
 echo "Timezone     : ${TZ:-not configured}"
-echo "HTTPS        : ${HTTPS_ENABLED}"
+echo "HTTPS        : required"
 echo "HTTPS Port   : ${HTTPS_PORT}"
 echo "============================================================"
 
@@ -132,60 +131,60 @@ chmod 700 "${SSH_DIR}"
 # TLS Certificate Storage
 # ============================================================================
 #
-# DockerManger's Nginx configuration expects:
+# HTTPS is mandatory for DockerManger.
+#
+# Nginx expects:
 #
 #   /data/certs/dockermanger.crt
 #   /data/certs/dockermanger.key
 #
-# When HTTPS is enabled and no certificate exists, create a self-signed
-# certificate so a fresh installation can start HTTPS immediately.
+# On a fresh installation DockerManger generates a self-signed bootstrap
+# certificate BEFORE Nginx is validated or started.
 #
-# This certificate is intended as a bootstrap/fallback certificate.
+# Existing certificates are never overwritten automatically.
 #
-# It can later be replaced by:
+# A complete existing certificate pair may later be supplied by:
 #
-#   - an administrator-provided certificate
-#   - a locally trusted certificate
+#   - the deployment administrator
+#   - a locally trusted certificate authority
 #   - Certbot / Let's Encrypt
 #   - future DockerManger certificate-management tooling
 #
+# If only one half of the certificate pair exists, startup intentionally fails
+# rather than silently replacing certificate material.
+#
 # ============================================================================
 
-if [ "${HTTPS_ENABLED}" = "true" ]; then
+if [ -f "${TLS_CERT}" ] && [ -f "${TLS_KEY}" ]; then
+    echo "[DockerManger] TLS certificate pair detected."
 
-    if [ -f "${TLS_CERT}" ] && [ -f "${TLS_KEY}" ]; then
-        echo "[DockerManger] TLS certificate detected."
+elif [ ! -f "${TLS_CERT}" ] && [ ! -f "${TLS_KEY}" ]; then
+    echo "[DockerManger] No TLS certificate detected."
+    echo "[DockerManger] Generating bootstrap self-signed certificate."
 
-    elif [ ! -f "${TLS_CERT}" ] && [ ! -f "${TLS_KEY}" ]; then
-        echo "[DockerManger] No TLS certificate detected."
-        echo "[DockerManger] Generating bootstrap self-signed certificate."
+    openssl req \
+        -x509 \
+        -nodes \
+        -newkey rsa:2048 \
+        -sha256 \
+        -days 3650 \
+        -keyout "${TLS_KEY}" \
+        -out "${TLS_CERT}" \
+        -subj "/CN=dockermanger" \
+        -addext "subjectAltName=DNS:dockermanger,DNS:localhost,IP:127.0.0.1"
 
-        openssl req \
-            -x509 \
-            -nodes \
-            -newkey rsa:2048 \
-            -sha256 \
-            -days 3650 \
-            -keyout "${TLS_KEY}" \
-            -out "${TLS_CERT}" \
-            -subj "/CN=dockermanger" \
-            -addext "subjectAltName=DNS:dockermanger,DNS:localhost,IP:127.0.0.1"
+    chmod 600 "${TLS_KEY}"
+    chmod 644 "${TLS_CERT}"
 
-        chmod 600 "${TLS_KEY}"
-        chmod 644 "${TLS_CERT}"
-
-        echo "[DockerManger] Bootstrap TLS certificate generated."
-
-    else
-        echo "[DockerManger] ERROR: Incomplete TLS certificate pair."
-        echo "[DockerManger] Expected:"
-        echo "[DockerManger]   ${TLS_CERT}"
-        echo "[DockerManger]   ${TLS_KEY}"
-        exit 1
-    fi
+    echo "[DockerManger] Bootstrap TLS certificate generated."
 
 else
-    echo "[DockerManger] HTTPS disabled."
+    echo "[DockerManger] ERROR: Incomplete TLS certificate pair."
+    echo "[DockerManger] Expected both:"
+    echo "[DockerManger]   ${TLS_CERT}"
+    echo "[DockerManger]   ${TLS_KEY}"
+    echo "[DockerManger] Refusing startup with incomplete TLS configuration."
+    exit 1
 fi
 
 
