@@ -3,10 +3,14 @@ name: dockermanger
 services:
   dockermanger:
     # -----------------------------------------------------------------------
-    # Image / build
+    # Image / Build
     # -----------------------------------------------------------------------
-    # Git Clone and compose up...
-    # Build DockerManger directly from this repository.
+    #
+    # Clone the DockerManger repository and run:
+    #
+    #   docker compose up -d --build
+    #
+    # DockerManger is built directly from the repository Dockerfile.
     #
     build:
       context: .
@@ -17,17 +21,25 @@ services:
     hostname: dockermanger
     restart: unless-stopped
 
-    # DockerManger's standard environment defaults.
-    # Site-specific deployments may edit this file or replace it with
-    # their own env_file.
+    # -----------------------------------------------------------------------
+    # DockerManger Environment
+    # -----------------------------------------------------------------------
+    #
+    # Runtime defaults used INSIDE the DockerManger container.
+    #
+    # Site-specific deployments may edit this file or replace it with another
+    # env_file.
+    #
     env_file:
       - ./dockerenvironment.env
 
     # -----------------------------------------------------------------------
-    # Resource controls
+    # Resource Controls
     # -----------------------------------------------------------------------
     #
-    # Conservative defaults for a small homelab management container. (rpi)
+    # Conservative defaults suitable for small homelab systems, including
+    # Raspberry Pi deployments.
+    #
     # These can be changed or removed by the deployment administrator.
     #
     mem_reservation: 512m
@@ -42,23 +54,38 @@ services:
     #
     # DockerManger exposes both HTTP and HTTPS.
     #
-    # HTTP is retained so Nginx can redirect requests to HTTPS.
-    # HTTPS is the normal DockerManger web interface.
+    # HTTP is retained so Nginx can redirect normal browser requests to HTTPS.
+    # HTTPS is the preferred DockerManger web interface.
     #
     # Default host ports:
     #
     #   HTTP  -> 5001
     #   HTTPS -> 5443
     #
-    # Examples:
+    # Example:
     #
     #   http://docker-host:5001
-    #       redirects to:
+    #
+    # redirects to:
+    #
     #   https://docker-host:5443
     #
     ports:
       - "${WEB_HTTP_PORT:-5001}:80"
       - "${WEB_HTTPS_PORT:-5443}:443"
+
+    # -----------------------------------------------------------------------
+    # Deployment-Specific Environment
+    # -----------------------------------------------------------------------
+    #
+    # These values depend on Compose-side interpolation and therefore remain
+    # here instead of dockerenvironment.env.
+    #
+    # DOCKERMANGER_HTTPS_PORT tells DockerManger/Nginx which EXTERNAL host
+    # port should be used when generating HTTP -> HTTPS redirects.
+    #
+    environment:
+      DOCKERMANGER_HTTPS_PORT: "${WEB_HTTPS_PORT:-5443}"
 
     # -----------------------------------------------------------------------
     # Storage / Docker Engine
@@ -74,22 +101,21 @@ services:
 
       # Persistent DockerManger application data.
       #
-      # SQLite database, settings and other application state belong here.
+      # SQLite databases, settings, generated certificates and other
+      # persistent DockerManger state belong beneath /data.
       #
       - ./data:/data
 
-      # SSH CLIENT configuration/keys for the optional host console.
+      # SSH CLIENT configuration and keys for the optional host console.
       #
       # DockerManger does NOT run an SSH server.
-      # This directory is used only when DockerManger connects outward to a
-      # host-provided SSH server.
       #
       - ./ssh:/root/.ssh
 
       # Docker Compose stacks.
       #
       # /opt/stacks is DockerManger's neutral default inside the container.
-      # HOST_STACKS_DIR allows each installation to choose its own host path.
+      # HOST_STACKS_DIR lets each deployment choose its own host-side path.
       #
       # Examples:
       #
@@ -100,7 +126,7 @@ services:
       - "${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
 
     # -----------------------------------------------------------------------
-    # Host access
+    # Docker Host Access
     # -----------------------------------------------------------------------
     #
     # Provides a portable hostname DockerManger can use when connecting back
@@ -110,71 +136,10 @@ services:
       - "host.docker.internal:host-gateway"
 
     # -----------------------------------------------------------------------
-    # DockerManger configuration
-    # -----------------------------------------------------------------------
-    environment:
-      # Container timezone.
-      TZ: "${TZ:-America/Chicago}"
-      
-      # --------------------------------------------------------------------------
-      # Web / HTTPS
-      # --------------------------------------------------------------------------
-
-      # DockerManger prefers HTTPS for normal browser access.
-      DOCKERMANGER_HTTPS_ENABLED=true
-
-      # External HTTPS port used when generating HTTP -> HTTPS redirects.
-      DOCKERMANGER_HTTPS_PORT=5443
-
-      
-      # Stack directory as seen INSIDE DockerManger.
-      STACKS_DIR: "${STACKS_DIR:-/opt/stacks}"
-
-      # ---------------------------------------------------------------------
-      # Web terminal
-      # ---------------------------------------------------------------------
-      #
-      # Future xterm.js + PTY/WebSocket console.
-      #
-      DOCKERMANGER_ENABLE_CONSOLE: "${DOCKERMANGER_ENABLE_CONSOLE:-true}"
-      DOCKERMANGER_TERMINAL_TYPE: "${DOCKERMANGER_TERMINAL_TYPE:-xterm-256color}"
-
-      # "local" opens a shell inside the DockerManger container by default.
-      DOCKERMANGER_CONSOLE_DEFAULT_TARGET: "${DOCKERMANGER_CONSOLE_DEFAULT_TARGET:-local}"
-
-      # ---------------------------------------------------------------------
-      # Optional host SSH console
-      # ---------------------------------------------------------------------
-      #
-      # DockerManger is an SSH CLIENT only.
-      # The target host must provide its own SSH server.
-      #
-      DOCKERMANGER_HOST_SHELL_ENABLED: "${DOCKERMANGER_HOST_SHELL_ENABLED:-false}"
-
-      DOCKERMANGER_HOST_SSH_HOST: "${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
-      DOCKERMANGER_HOST_SSH_PORT: "${DOCKERMANGER_HOST_SSH_PORT:-22}"
-      DOCKERMANGER_HOST_SSH_USER: "${DOCKERMANGER_HOST_SSH_USER:-root}"
-
-      # Optional explicit SSH private key.
-      #
-      # SSH will automatically try normal keys in /root/.ssh, such as:
-      #   id_ed25519
-      #   id_rsa
-      #
-      # Set this when a specific/dedicated key should be used.
-      DOCKERMANGER_HOST_SSH_KEY: "${DOCKERMANGER_HOST_SSH_KEY:-}"
-
-      # Optional password authentication fallback.
-      #
-      # Leave empty when using SSH keys.
-      # Environment variables are not a secure secret store.
-      DOCKERMANGER_HOST_SSH_PASSWORD: "${DOCKERMANGER_HOST_SSH_PASSWORD:-}"
-
-    # -----------------------------------------------------------------------
-    # Container logging
+    # Container Logging
     # -----------------------------------------------------------------------
     #
-    # Prevent DockerManger logs from growing indefinitely.
+    # Prevent DockerManger container logs from growing indefinitely.
     #
     logging:
       driver: local
@@ -182,6 +147,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# No DockerManger-specific network is required currently.
-# Compose will create its normal project default network.
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+#
+# No DockerManger-specific network is currently required.
+# Compose creates the normal project default network.
+#
 networks: {}
