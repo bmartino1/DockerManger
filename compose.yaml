@@ -1,33 +1,156 @@
 name: dockermanger
+
 services:
   dockermanger:
-    build: {context: ., dockerfile: Dockerfile}
+    # -----------------------------------------------------------------------
+    # Image / build
+    # -----------------------------------------------------------------------
+    # Git Clone and compose up...
+    # Build DockerManger directly from this repository.
+    #
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     image: dockermanger:dev
     container_name: dockermanger
+    hostname: dockermanger
     restart: unless-stopped
+
+    # -----------------------------------------------------------------------
+    # Resource controls
+    # -----------------------------------------------------------------------
+    #
+    # Conservative defaults for a small homelab management container. (rpi)
+    # These can be changed or removed by the deployment administrator.
+    #
     mem_reservation: 512m
     mem_limit: 2g
     memswap_limit: 3g
     cpu_shares: 1024
     pids_limit: 1024
-    ports: ["${WEB_PORT:-5001}:80"]
+
+    # -----------------------------------------------------------------------
+    # Web interface
+    # -----------------------------------------------------------------------
+    #
+    # WEB_PORT controls the port exposed on the Docker host.
+    # DockerManger listens on port 80 inside the container.
+    #
+    ports:
+      - "${WEB_PORT:-5001}:80"
+
+    # -----------------------------------------------------------------------
+    # Storage / Docker Engine
+    # -----------------------------------------------------------------------
     volumes:
+      # Docker Engine access.
+      #
+      # WARNING:
+      # Access to docker.sock effectively grants DockerManger administrative
+      # control over the host Docker Engine.
+      #
       - /var/run/docker.sock:/var/run/docker.sock
+
+      # Persistent DockerManger application data.
+      #
+      # SQLite database, settings and other application state belong here.
+      #
       - ./data:/data
+
+      # SSH CLIENT configuration/keys for the optional host console.
+      #
+      # DockerManger does NOT run an SSH server.
+      # This directory is used only when DockerManger connects outward to a
+      # host-provided SSH server.
+      #
       - ./ssh:/root/.ssh
-      - ${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
-    extra_hosts: ["host.docker.internal:host-gateway"]
+
+      # Docker Compose stacks.
+      #
+      # /opt/stacks is DockerManger's neutral default inside the container.
+      # HOST_STACKS_DIR allows each installation to choose its own host path.
+      #
+      # Examples:
+      #
+      #   HOST_STACKS_DIR=/opt/stacks
+      #   HOST_STACKS_DIR=/mnt/docker
+      #   HOST_STACKS_DIR=/srv/docker/stacks
+      #
+      - "${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
+
+    # -----------------------------------------------------------------------
+    # Host access
+    # -----------------------------------------------------------------------
+    #
+    # Provides a portable hostname DockerManger can use when connecting back
+    # to the Docker host.
+    #
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # -----------------------------------------------------------------------
+    # DockerManger configuration
+    # -----------------------------------------------------------------------
     environment:
-      TZ: ${TZ:-America/Chicago}
-      STACKS_DIR: ${STACKS_DIR:-/opt/stacks}
+      # Container timezone.
+      TZ: "${TZ:-America/Chicago}"
+
+      # Stack directory as seen INSIDE DockerManger.
+      STACKS_DIR: "${STACKS_DIR:-/opt/stacks}"
+
+      # ---------------------------------------------------------------------
+      # Web terminal
+      # ---------------------------------------------------------------------
+      #
+      # Future xterm.js + PTY/WebSocket console.
+      #
       DOCKERMANGER_ENABLE_CONSOLE: "${DOCKERMANGER_ENABLE_CONSOLE:-true}"
       DOCKERMANGER_TERMINAL_TYPE: "${DOCKERMANGER_TERMINAL_TYPE:-xterm-256color}"
+
+      # "local" opens a shell inside the DockerManger container by default.
       DOCKERMANGER_CONSOLE_DEFAULT_TARGET: "${DOCKERMANGER_CONSOLE_DEFAULT_TARGET:-local}"
-      DOCKERMANGER_HOST_SHELL_ENABLED: "${DOCKERMANGER_HOST_SHELL_ENABLED:-true}"
+
+      # ---------------------------------------------------------------------
+      # Optional host SSH console
+      # ---------------------------------------------------------------------
+      #
+      # DockerManger is an SSH CLIENT only.
+      # The target host must provide its own SSH server.
+      #
+      DOCKERMANGER_HOST_SHELL_ENABLED: "${DOCKERMANGER_HOST_SHELL_ENABLED:-false}"
+
       DOCKERMANGER_HOST_SSH_HOST: "${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
-      DOCKERMANGER_HOST_SSH_PORT: "${DOCKERMANGER_HOST_SSH_PORT:-2222}"
+      DOCKERMANGER_HOST_SSH_PORT: "${DOCKERMANGER_HOST_SSH_PORT:-22}"
       DOCKERMANGER_HOST_SSH_USER: "${DOCKERMANGER_HOST_SSH_USER:-root}"
+
+      # Optional explicit SSH private key.
+      #
+      # SSH will automatically try normal keys in /root/.ssh, such as:
+      #   id_ed25519
+      #   id_rsa
+      #
+      # Set this when a specific/dedicated key should be used.
+      DOCKERMANGER_HOST_SSH_KEY: "${DOCKERMANGER_HOST_SSH_KEY:-}"
+
+      # Optional password authentication fallback.
+      #
+      # Leave empty when using SSH keys.
+      # Environment variables are not a secure secret store.
+      DOCKERMANGER_HOST_SSH_PASSWORD: "${DOCKERMANGER_HOST_SSH_PASSWORD:-}"
+
+    # -----------------------------------------------------------------------
+    # Container logging
+    # -----------------------------------------------------------------------
+    #
+    # Prevent DockerManger logs from growing indefinitely.
+    #
     logging:
       driver: local
-      options: {max-size: "10m", max-file: "3"}
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# No DockerManger-specific network is required currently.
+# Compose will create its normal project default network.
 networks: {}
