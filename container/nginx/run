@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# ============================================================================
+# DockerManger - Nginx runit Service
+# ============================================================================
+#
+# This is the runit service launcher for Nginx inside the DockerManger
+# container.
+#
+# Source in repository:
+#
+#   container/nginx/run
+#
+# Installed by the Dockerfile as:
+#
+#   /etc/service/nginx/run
+#
+# Phusion Baseimage's runit supervisor executes this file to start and
+# supervise Nginx.
+#
+# Nginx must remain in the foreground. runit is responsible for supervising
+# the process and restarting it if it exits unexpectedly.
+#
+# ============================================================================
+
+set -e
+
+exec /usr/sbin/nginx -g 'daemon off;'
