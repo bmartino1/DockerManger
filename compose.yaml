@@ -1,23 +1,33 @@
+name: dockermanger
 services:
   dockermanger:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
+    build: {context: ., dockerfile: Dockerfile}
     image: dockermanger:dev
     container_name: dockermanger
-    hostname: dockermanger
     restart: unless-stopped
-
-    ports:
-      - "${WEB_PORT:-5001}:80"
-      - "${SSH_PORT:-2222}:22"
-
-    environment:
-      TZ: ${TZ:-America/Chicago}
-      STACKS_DIR: ${STACKS_DIR:-/opt/stacks}
-
+    mem_reservation: 512m
+    mem_limit: 2g
+    memswap_limit: 3g
+    cpu_shares: 1024
+    pids_limit: 1024
+    ports: ["${WEB_PORT:-5001}:80"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}
       - ./data:/data
+      - ./ssh:/root/.ssh
+      - ${STACKS_DIR:-/VMs/docker}:${STACKS_DIR:-/VMs/docker}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    environment:
+      TZ: ${TZ:-America/Chicago}
+      STACKS_DIR: ${STACKS_DIR:-/VMs/docker}
+      DOCKERMANGER_ENABLE_CONSOLE: "${DOCKERMANGER_ENABLE_CONSOLE:-true}"
+      DOCKERMANGER_TERMINAL_TYPE: "${DOCKERMANGER_TERMINAL_TYPE:-xterm-256color}"
+      DOCKERMANGER_CONSOLE_DEFAULT_TARGET: "${DOCKERMANGER_CONSOLE_DEFAULT_TARGET:-local}"
+      DOCKERMANGER_HOST_SHELL_ENABLED: "${DOCKERMANGER_HOST_SHELL_ENABLED:-true}"
+      DOCKERMANGER_HOST_SSH_HOST: "${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
+      DOCKERMANGER_HOST_SSH_PORT: "${DOCKERMANGER_HOST_SSH_PORT:-2222}"
+      DOCKERMANGER_HOST_SSH_USER: "${DOCKERMANGER_HOST_SSH_USER:-root}"
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+networks: {}

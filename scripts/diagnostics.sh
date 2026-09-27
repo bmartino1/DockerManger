@@ -1,60 +1,20 @@
 #!/bin/bash
 set -u
-
-echo "============================================================"
-echo " DockerManger diagnostics"
-echo "============================================================"
-echo
-echo "Architecture: $(uname -m)"
-echo "Hostname:     $(hostname)"
-echo "Stacks:       ${STACKS_DIR:-/opt/stacks}"
-echo
-
-echo "---- Versions ------------------------------------------------"
-php --version | head -n 1 || true
-nginx -v 2>&1 || true
-node --version 2>/dev/null || true
-npm --version 2>/dev/null || true
-docker --version 2>/dev/null || true
-docker compose version 2>/dev/null || true
-sqlite3 --version 2>/dev/null | head -n 1 || true
-echo
-
-echo "---- Docker socket -------------------------------------------"
-if [ -S /var/run/docker.sock ]; then
-    ls -l /var/run/docker.sock
-else
-    echo "NOT PRESENT"
+echo "=== DockerManger diagnostics ==="
+uname -a
+php --version | head -1 || true
+node --version || true
+npm --version || true
+ssh -V 2>&1 || true
+docker --version || true
+docker compose version || true
+ls -l /var/run/docker.sock || true
+docker ps -a || true
+ip addr || true
+ip route || true
+ss -lntup || true
+if [ "${DOCKERMANGER_HOST_SHELL_ENABLED:-false}" = true ]; then
+ h="${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"; p="${DOCKERMANGER_HOST_SSH_PORT:-2222}"
+ echo "Host SSH target: ${DOCKERMANGER_HOST_SSH_USER:-root}@${h}:${p}"
+ nc -z -w 3 "$h" "$p" && echo "SSH TCP reachable" || echo "SSH TCP not reachable (optional host service)"
 fi
-echo
-
-echo "---- Docker daemon -------------------------------------------"
-docker version 2>&1 || true
-echo
-
-echo "---- Containers ----------------------------------------------"
-docker ps -a 2>&1 || true
-echo
-
-echo "---- Network -------------------------------------------------"
-ip addr 2>&1 || true
-echo
-ip route 2>&1 || true
-echo
-ss -lntup 2>&1 || true
-echo
-
-echo "---- DNS -----------------------------------------------------"
-cat /etc/resolv.conf 2>/dev/null || true
-echo
-
-echo "---- Stack directories ---------------------------------------"
-find "${STACKS_DIR:-/opt/stacks}" -maxdepth 2 \
-    \( -name compose.yaml -o -name compose.yml -o \
-       -name docker-compose.yml -o -name docker-compose.yaml \) \
-    -print 2>/dev/null || true
-
-echo
-echo "============================================================"
-echo " Diagnostics complete"
-echo "============================================================"
