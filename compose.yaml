@@ -17,6 +17,12 @@ services:
     hostname: dockermanger
     restart: unless-stopped
 
+    # DockerManger's standard environment defaults.
+    # Site-specific deployments may edit this file or replace it with
+    # their own env_file.
+    env_file:
+      - ./dockerenvironment.env
+
     # -----------------------------------------------------------------------
     # Resource controls
     # -----------------------------------------------------------------------
