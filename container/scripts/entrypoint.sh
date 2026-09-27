@@ -326,8 +326,23 @@ if [ -f "${PHP_FPM_POOL}" ]; then
     set_fpm_env() {
         local name="$1"
         local value="$2"
-        sed -i "/^[[:space:]]*env\[${name}\][[:space:]]*=/d" "${PHP_FPM_POOL}"
-        printf 'env[%s] = %s\n' "${name}" "${value}" >> "${PHP_FPM_POOL}"
+        local escaped_value
+
+        # Remove any previous generated value first so repeated starts remain
+        # idempotent. PHP-FPM treats an unquoted blank assignment as an invalid
+        # "empty value", so never emit one.
+        sed -i "/^[[:space:]]*env\\[${name}\\][[:space:]]*=/d" "${PHP_FPM_POOL}"
+
+        if [ -z "${value}" ]; then
+            echo "[DockerManger] WARNING: Skipping empty PHP-FPM environment value: ${name}"
+            return 0
+        fi
+
+        # Quote generated values. Escape the two characters that are special
+        # inside a PHP-FPM double-quoted configuration value.
+        escaped_value="${value//\\/\\\\}"
+        escaped_value="${escaped_value//\"/\\\"}"
+        printf 'env[%s] = "%s"\\n' "${name}" "${escaped_value}" >> "${PHP_FPM_POOL}"
     }
 
     set_fpm_env "TZ" "${PHP_TIMEZONE}"
