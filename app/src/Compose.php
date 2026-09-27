@@ -7,6 +7,9 @@ namespace DockerManger;
 use DirectoryIterator;
 use InvalidArgumentException;
 use RuntimeException;
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 /**
  * Compose discovery, file management and explicit lifecycle operations.
@@ -77,6 +80,29 @@ final class Compose
         return $contents;
     }
 
+
+    /** Read the conventional per-stack .env file. Missing files are treated as empty. */
+    public function readEnv(string $name): string
+    {
+        $stack = $this->requireStack($name);
+        $file = $stack['path'] . '/.env';
+        if (!is_file($file)) return '';
+        $contents = file_get_contents($file);
+        if ($contents === false) throw new RuntimeException('DockerManger cannot read the stack .env file.');
+        return $contents;
+    }
+
+    /** Save only the conventional .env file inside the validated stack directory. */
+    public function saveEnv(string $name, string $contents): array
+    {
+        if (strlen($contents) > 256 * 1024) throw new RuntimeException('Environment file is too large.');
+        $stack = $this->requireStack($name);
+        if (!is_writable($stack['path'])) throw new RuntimeException('DockerManger cannot edit this stack directory. Check the host bind-mount permissions.');
+        $file = $stack['path'] . '/.env';
+        if (file_put_contents($file, $contents, LOCK_EX) === false) throw new RuntimeException('DockerManger could not write the stack .env file.');
+        return ['ok'=>true,'error'=>null];
+    }
+
     /** Validate a temporary Compose file before replacing the live file. */
     public function save(string $name, string $contents): array
     {
@@ -96,10 +122,11 @@ final class Compose
     }
 
     /** Create a new managed stack only after its Compose file validates. */
-    public function create(string $name, string $contents): array
+    public function create(string $name, string $contents, string $envContents = ''): array
     {
         $name = $this->assertStackName($name);
         if (strlen($contents) > 1024 * 1024) throw new RuntimeException('Compose file is too large.');
+        if (strlen($envContents) > 256 * 1024) throw new RuntimeException('Environment file is too large.');
         $root = realpath($this->stacksDir);
         if ($root === false) throw new RuntimeException('The configured stack root does not exist: ' . $this->stacksDir);
         if (!is_writable($root)) throw new RuntimeException('DockerManger cannot create stacks because ' . $root . ' is not writable. Check the host directory mounted to /opt/stacks.');
@@ -108,8 +135,15 @@ final class Compose
         if (!mkdir($directory, 0775, false)) throw new RuntimeException('DockerManger could not create the stack directory ' . $directory . '. Check the stack-root permissions.');
         $file = $directory . '/compose.yaml';
         if (file_put_contents($file, $contents, LOCK_EX) === false) { @rmdir($directory); throw new RuntimeException('DockerManger created the stack directory but could not write ' . $file . '. Check directory ownership and permissions.'); }
+        // Create .env before validation so Compose expressions such as
+        // ${PORT:?required} can be validated using values entered on this page.
+        $envFile = $directory . '/.env';
+        if (file_put_contents($envFile, $envContents, LOCK_EX) === false) {
+            @unlink($file); @rmdir($directory);
+            throw new RuntimeException('DockerManger could not create the stack .env file.');
+        }
         $validation = $this->validate($directory, $file);
-        if (!$validation['valid']) { @unlink($file); @rmdir($directory); return ['ok'=>false,'error'=>$validation['error']]; }
+        if (!$validation['valid']) { @unlink($envFile); @unlink($file); @rmdir($directory); return ['ok'=>false,'error'=>$validation['error']]; }
         return ['ok'=>true,'error'=>null,'name'=>$name];
     }
 
@@ -117,6 +151,31 @@ final class Compose
     public function stop(string $name): array { return $this->runForStack($name, ['stop'], 120); }
     public function restart(string $name): array { return $this->runForStack($name, ['restart'], 180); }
     public function down(string $name): array { return $this->runForStack($name, ['down'], 180); }
+
+
+    /** Down the stack, then remove only its directory beneath STACKS_DIR. */
+    public function delete(string $name): array
+    {
+        $stack = $this->requireStack($name);
+        $down = $this->down($name);
+        if ($down['exitCode'] !== 0) return $down;
+
+        $directory = $this->assertInsideStacksDir($stack['path']);
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($iterator as $item) {
+            $path = $item->getPathname();
+            if ($item->isLink() || $item->isFile()) {
+                if (!@unlink($path)) throw new RuntimeException('Unable to delete stack file: ' . $path);
+            } elseif (!@rmdir($path)) {
+                throw new RuntimeException('Unable to delete stack directory: ' . $path);
+            }
+        }
+        if (!@rmdir($directory)) throw new RuntimeException('Unable to remove stack directory: ' . $directory);
+        return ['command'=>$down['command'],'exitCode'=>0,'stdout'=>$down['stdout'],'stderr'=>'','output'=>trim($down['output'] . "\nStack files deleted.")];
+    }
     public function pull(string $name): array { return $this->runForStack($name, ['pull'], 600); }
 
     public function update(string $name): array

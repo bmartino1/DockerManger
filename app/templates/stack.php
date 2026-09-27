@@ -41,7 +41,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
         <aside class="sidebar">
             <div class="sidebar-head">
                 <div><span class="eyebrow">Compose</span><h2>Stacks</h2></div>
-                <a class="button button-small" href="/#new-stack">+ Compose</a>
+                <a class="button button-small" href="/create.php">+ Compose</a>
             </div>
             <label class="search-box">
                 <span class="sr-only">Search stacks</span>
@@ -88,6 +88,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <button class="button button-secondary stack-action" data-action="stack-restart">Restart</button>
                     <button class="button stack-action" data-action="stack-update">Update</button>
                     <button class="button button-danger stack-action" data-action="stack-down">Down</button>
+                    <button class="button button-danger stack-action" data-action="stack-delete">Down &amp; Delete</button>
                 </section>
                 <div id="action-result" class="operation-output" hidden></div>
 
@@ -147,6 +148,16 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         </form>
                     </section>
                 </div>
+
+                <section class="panel env-panel">
+                    <div class="panel-heading"><div><span class="eyebrow">Environment</span><h2>.env</h2></div><span class="count-badge">Stack file</span></div>
+                    <p class="panel-description">Edit the conventional <code>.env</code> file used for Compose variable substitution. Treat values here as secrets when appropriate.</p>
+                    <form id="env-editor" data-stack="<?= $escape($selected['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
+                        <textarea class="compose-editor compose-editor-small" name="env" spellcheck="false" placeholder="APP_PORT=8080
+TZ=America/Chicago"><?= $escape($envText ?? '') ?></textarea>
+                        <div class="editor-actions"><button class="button" type="submit">Save .env</button><span class="muted-cell">Saved only inside this stack directory.</span></div>
+                    </form>
+                </section>
 
                 <section class="panel">
                     <div class="panel-heading">

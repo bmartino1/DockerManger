@@ -392,3 +392,7 @@ Git clone -> local docker compose build -> docker compose up
 ```
 
 Future Docker Hub instructions should be added only when the image name, tags, supported architectures, and release process are finalized.
+
+## Interactive shell convenience
+
+DockerManger installs `/etc/profile.d/dockermanger-mc.sh`. Interactive Bash shells therefore wrap Midnight Commander so exiting `mc` can change the parent shell to the directory selected in Midnight Commander. The wrapper calls the real `mc` executable and does not affect non-interactive services.

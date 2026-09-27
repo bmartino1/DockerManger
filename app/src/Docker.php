@@ -144,6 +144,7 @@ final class Docker
     public function start(string $identifier): array { return $this->containerAction('start', $identifier); }
     public function stop(string $identifier): array { return $this->containerAction('stop', $identifier); }
     public function restart(string $identifier): array { return $this->containerAction('restart', $identifier); }
+    public function kill(string $identifier): array { return $this->containerAction('kill', $identifier); }
 
     public function logs(string $identifier, int $tail = 250): array
     {

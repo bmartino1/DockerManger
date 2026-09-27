@@ -705,3 +705,7 @@ tbody tr:hover {
 .terminal-surface .xterm { height: 100%; }
 .terminal-status { padding: 8px 12px; border-top: 1px solid var(--border, #263241); color: var(--muted, #8fa4bd); font-size: .85rem; }
 .terminal-targets { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Management/source labels keep the all-containers table useful without
+   duplicating a separate external-container panel on the dashboard. */
+.management-badge{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #304256;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.management-badge.managed{color:#5bd5a1;border-color:#245b49;background:#0d211b}.management-badge.external{color:#e7bd72;border-color:#5c4828;background:#211a0d}.management-badge.system{color:#8fc6ff;border-color:#315b83;background:#0e1c2a}.create-page{max-width:1500px;margin:0 auto}.create-grid{align-items:start}.env-panel{margin-bottom:18px}.env-editor-small{min-height:150px}.create-stack-form code,.panel-description code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#c9dbed}

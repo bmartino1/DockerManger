@@ -254,6 +254,7 @@ COPY app/ /var/www/dockermanger/
 # tree so the console does not depend on a third-party CDN at runtime.
 COPY container/terminal/package.json /opt/dockermanger-terminal/package.json
 COPY container/terminal/server.js /opt/dockermanger-terminal/server.js
+COPY container/terminal/composerize.js /opt/dockermanger-terminal/composerize.js
 RUN cd /opt/dockermanger-terminal && \
     npm install --omit=dev --no-audit --no-fund && \
     mkdir -p /var/www/dockermanger/public/vendor/xterm && \
@@ -278,6 +279,9 @@ COPY container/scripts/healthcheck.sh \
 
 COPY container/scripts/diagnostics.sh \
     /usr/local/bin/dockermanger-diagnostics
+
+COPY container/scripts/mc-cd.sh \
+    /etc/profile.d/dockermanger-mc.sh
 
 
 # ============================================================================

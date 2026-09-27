@@ -51,6 +51,7 @@ if ($selectedStackName !== '') {
         $pageError = 'Compose stack not found.';
     } else {
         $composeText = $composeClient->read($selectedStackName);
+        $envText = $composeClient->readEnv($selectedStackName);
         $stackLogs = $docker['available']
             ? $composeClient->logs($selectedStackName, 250)
             : ['output' => 'Docker Engine unavailable.'];

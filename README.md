@@ -46,7 +46,9 @@ Current application behavior includes:
   - `degraded`
 - Stack search/filtering in the dashboard.
 - Controlled stack/container lifecycle actions and logs.
+- Dedicated stack-creation page with Compose validation, per-stack `.env` creation/editing, and Docker-run-to-Compose conversion using Composerize.
 - Compose create/edit with validation before replacing the live file.
+- Explicit stack Down & Delete and container Kill controls with browser confirmation.
 - Standalone/third-party container detail pages.
 - Initial xterm.js console targets for DockerManger, containers, and optional outbound host SSH.
 - JSON resources for system, container, stack, logs, and controlled actions.
@@ -71,6 +73,7 @@ DockerManger/
 │   ├── public/
 │   │   ├── api.php
 │   │   ├── console.php
+│   │   ├── create.php
 │   │   ├── health.php
 │   │   ├── index.php
 │   │   ├── favicon.ico
@@ -98,13 +101,15 @@ DockerManger/
 │   │   ├── docker-manager.ini
 │   │   └── run
 │   ├── terminal/
+│   │   ├── composerize.js
 │   │   ├── package.json
 │   │   ├── run
 │   │   └── server.js
 │   └── scripts/
 │       ├── diagnostics.sh
 │       ├── entrypoint.sh
-│       └── healthcheck.sh
+│       ├── healthcheck.sh
+│       └── mc-cd.sh
 ├── data/
 │   ├── certs/.gitkeep
 │   ├── compose_stacks/.gitkeep
@@ -387,7 +392,7 @@ Browser
                     +--> outbound ssh to the Docker host
 ```
 
-PHP remains the application/control plane and will be responsible for authorization/session creation. Node.js is reserved for the PTY/WebSocket portion where PHP is not a good fit.
+PHP remains the application/control plane and will be responsible for authorization/session creation. Node.js handles PTY/WebSocket I/O and the fixed-purpose Composerize conversion helper; PHP remains the application/control plane. Docker-run text is converted as data and is never executed by the conversion endpoint.
 
 DockerManger installs the **OpenSSH client only**. It does not expose an SSH server.
 

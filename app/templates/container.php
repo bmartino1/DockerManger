@@ -17,6 +17,7 @@ $escape = static fn(mixed $value): string =>
 $managedProjects = array_column($stacks, 'name');
 $project = $selectedContainer ? \DockerManger\Docker::composeProject($selectedContainer) : null;
 $isManagedCompose = $project !== null && in_array($project, $managedProjects, true);
+$isDockerMangerSystem = $selectedContainer && $selectedContainer['name'] === 'dockermanger';
 ?>
 <!doctype html>
 <html lang="en">
@@ -35,7 +36,7 @@ $isManagedCompose = $project !== null && in_array($project, $managedProjects, tr
 </header>
 <div class="layout">
 <aside class="sidebar">
-    <div class="sidebar-head"><div><span class="eyebrow">Compose</span><h2>Stacks</h2></div><a class="button button-small" href="/#new-stack">+ Compose</a></div>
+    <div class="sidebar-head"><div><span class="eyebrow">Compose</span><h2>Stacks</h2></div><a class="button button-small" href="/create.php">+ Compose</a></div>
     <label class="search-box"><span class="sr-only">Search stacks</span><input id="stack-search" type="search" placeholder="Search stacks..."></label>
     <nav class="stack-list">
         <?php foreach ($stacks as $stack): ?>
@@ -52,22 +53,25 @@ $isManagedCompose = $project !== null && in_array($project, $managedProjects, tr
 <?php else: ?>
     <section class="page-heading stack-heading">
         <div>
-            <span class="eyebrow"><?= $isManagedCompose ? 'Compose Container' : 'External Container' ?></span>
+            <span class="eyebrow"><?= $isDockerMangerSystem ? 'DockerManger System Container' : ($isManagedCompose ? 'Compose Container' : 'External Container') ?></span>
             <h1><span class="status <?= !empty($selectedContainer['running']) ? 'active' : 'exited' ?>"></span><?= $escape($selectedContainer['name']) ?></h1>
             <p><?= $escape($selectedContainer['image']) ?> · <?= $escape($selectedContainer['status']) ?></p>
         </div>
     </section>
 
-    <?php if ($isManagedCompose): ?>
+    <?php if ($isDockerMangerSystem): ?>
+        <div class="notice"><strong>This is the DockerManger system container.</strong><span>Runtime controls affect the management UI itself. Its deployment configuration is managed outside this web UI.</span></div>
+    <?php elseif ($isManagedCompose): ?>
         <div class="notice"><strong>This container belongs to the managed Compose stack “<?= $escape($project) ?>”.</strong><span>Use the stack page for Compose lifecycle and configuration changes. <a href="/?stack=<?= urlencode($project) ?>">Open stack</a></span></div>
     <?php else: ?>
-        <div class="notice"><strong>Externally managed container</strong><span>DockerManger can control its runtime state, logs and console, but does not own the configuration that created it.</span></div>
+        <div class="notice"><strong>Externally managed container</strong><span>DockerManger can control its runtime state, logs and console, but does not own or edit the configuration that created it.</span></div>
     <?php endif; ?>
 
     <section class="stack-actions" data-container="<?= $escape($selectedContainer['id']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
         <button class="button container-action" data-action="container-start">Start</button>
         <button class="button button-secondary container-action" data-action="container-stop">Stop</button>
         <button class="button button-secondary container-action" data-action="container-restart">Restart</button>
+        <button class="button button-danger container-action" data-action="container-kill">Kill</button>
         <a class="button button-secondary" href="/console.php?container=<?= urlencode($selectedContainer['name']) ?>">Console</a>
     </section>
     <div id="action-result" class="operation-output" hidden></div>

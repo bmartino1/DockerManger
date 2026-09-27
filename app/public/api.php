@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 use DockerManger\Compose;
+use DockerManger\Command;
 use DockerManger\Docker;
 use DockerManger\Stack;
 use DockerManger\SystemInfo;
@@ -39,11 +40,15 @@ try {
             'stack-restart' => $composeClient->restart($stack),
             'stack-update' => $composeClient->update($stack),
             'stack-down' => $composeClient->down($stack),
+            'stack-delete' => $composeClient->delete($stack),
             'container-start' => $dockerClient->start($container),
             'container-stop' => $dockerClient->stop($container),
             'container-restart' => $dockerClient->restart($container),
+            'container-kill' => $dockerClient->kill($container),
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
-            'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? '')),
+            'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
+            'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
+            'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? ''), (string) ($_POST['env'] ?? '')),
             default => throw new InvalidArgumentException('Unknown action.'),
         };
 
@@ -136,6 +141,26 @@ try {
     // Browser receives an actionable message; full PHP errors stay in logs.
     error_log('[DockerManger API] ' . $e->getMessage());
     respond(['ok' => false, 'error' => $e->getMessage()], 400);
+}
+
+/** Convert docker run text to Compose without executing the supplied command. */
+function composerize(string $dockerRun): array
+{
+    $dockerRun = trim($dockerRun);
+    if ($dockerRun === '' || strlen($dockerRun) > 65536) {
+        throw new InvalidArgumentException('Docker run command is empty or too large.');
+    }
+    $result = Command::run(
+        '/usr/bin/node',
+        ['/opt/dockermanger-terminal/composerize.js', base64_encode($dockerRun)],
+        '/opt/dockermanger-terminal',
+        10
+    );
+    return [
+        'ok' => $result['exitCode'] === 0,
+        'compose' => $result['stdout'],
+        'error' => $result['exitCode'] === 0 ? null : ($result['stderr'] ?: 'Composerize conversion failed.'),
+    ];
 }
 
 function respond(array $payload, int $status = 200): never

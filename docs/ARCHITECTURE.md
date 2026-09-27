@@ -286,3 +286,9 @@ DockerManger should remain:
 - usable with ordinary Docker/Compose projects outside DockerManger;
 - small enough to troubleshoot from the command line;
 - capable of growing the terminal and authentication layers without making Node.js the primary control plane.
+
+## Stack creation and environment files
+
+DockerManger-created stacks use `compose.yaml` plus the conventional `.env` file in the same stack directory. The create page can accept Compose directly or convert pasted `docker run` text with the bundled Composerize library. Conversion is a fixed-purpose transformation only; DockerManger does not execute the pasted Docker command. Both Compose and `.env` remain editable after creation.
+
+Destructive controls remain explicit named operations. `Down & Delete` first runs Compose down and only then removes the selected stack directory beneath `STACKS_DIR`. Container `Kill` maps only to the validated `docker kill <container>` operation.
