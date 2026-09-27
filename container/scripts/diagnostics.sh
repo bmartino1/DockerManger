@@ -90,12 +90,6 @@ else
     status_warn "npm"
 fi
 
-if command -v sqlite3 >/dev/null 2>&1; then
-    status_info "SQLite" "$(sqlite3 --version | awk '{print $1}')"
-else
-    status_warn "SQLite"
-fi
-
 if command -v ssh >/dev/null 2>&1; then
     status_info "OpenSSH Client" "$(ssh -V 2>&1)"
 else
@@ -369,7 +363,6 @@ SSH_HOST="${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
 SSH_PORT="${DOCKERMANGER_HOST_SSH_PORT:-22}"
 SSH_USER="${DOCKERMANGER_HOST_SSH_USER:-root}"
 SSH_KEY="${DOCKERMANGER_HOST_SSH_KEY:-}"
-SSH_PASSWORD="${DOCKERMANGER_HOST_SSH_PASSWORD:-}"
 
 status_info "Host Console Enabled" "${HOST_SHELL_ENABLED}"
 

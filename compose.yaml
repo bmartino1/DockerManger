@@ -105,25 +105,26 @@ services:
       #
       - /var/run/docker.sock:/var/run/docker.sock
 
-      # Persistent DockerManger application data.
+      # Persistent DockerManger runtime data.
       #
-      # SQLite databases, settings, generated certificates and other
-      # persistent DockerManger state belong beneath /data.
+      # TLS certificates and SSH client state live beneath /data.
+      # Compose stacks are mounted separately below so /opt/stacks remains the
+      # application's neutral in-container stack path.
       #
       - ./data:/data
 
       # Docker Compose stacks.
       #
-      # /opt/stacks is DockerManger's neutral default inside the container.
-      # HOST_STACKS_DIR lets each deployment choose its own host-side path.
+      # A repository checkout works immediately with ./data/compose_stacks.
+      # Set HOST_STACKS_DIR only when stacks already live somewhere else.
       #
       # Examples:
       #
-      #   HOST_STACKS_DIR=/opt/stacks
+      #   default:                         ./data/compose_stacks
       #   HOST_STACKS_DIR=/mnt/docker
       #   HOST_STACKS_DIR=/srv/docker/stacks
       #
-      - "${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
+      - "${HOST_STACKS_DIR:-./data/compose_stacks}:${STACKS_DIR:-/opt/stacks}"
 
     # -----------------------------------------------------------------------
     # Docker Host Access

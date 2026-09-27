@@ -149,8 +149,7 @@ chmod 700 "${SSH_DIR}"
 #
 #   - the deployment administrator
 #   - a locally trusted certificate authority
-#   - Certbot / Let's Encrypt
-#   - future DockerManger certificate-management tooling
+#   - an external ACME / Let's Encrypt client
 #
 # If only one half of the certificate pair exists, startup intentionally fails
 # rather than silently replacing certificate material.

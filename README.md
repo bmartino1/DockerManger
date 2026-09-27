@@ -108,8 +108,6 @@ DockerManger/
 ├── data/
 │   ├── certs/.gitkeep
 │   ├── compose_stacks/.gitkeep
-│   ├── config/.gitkeep
-│   ├── database/.gitkeep
 │   └── ssh/.gitkeep
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -146,7 +144,7 @@ The generated certificate is persistent because `./data` is mounted at `/data`.
 
 Existing certificate pairs are preserved. If only the certificate or only the key exists, startup fails rather than silently replacing certificate material.
 
-The bootstrap certificate can later be replaced with an administrator-provided trusted certificate. Certbot is present in the image for future certificate-management work, but certificate issuance is not automatically performed during container startup.
+The bootstrap certificate can later be replaced with an administrator-provided trusted certificate. DockerManger does not bundle a certificate-issuance service; an administrator or external ACME client can supply the trusted certificate pair.
 
 Because the initial certificate is self-signed, a browser certificate warning is expected until a trusted certificate is installed.
 
@@ -174,16 +172,10 @@ Expected persistent layout:
 │   ├── config
 │   ├── known_hosts
 │   └── optional private/public keys
-├── database/
-│   └── future SQLite application database
-├── config/
-│   └── future generated application settings
 └── compose_stacks/
 ```
 
-Runtime certificates, SSH keys, databases, and generated configuration should not be committed to Git.
-
-SQLite remains the planned default application-state database. Compose project definitions themselves remain ordinary files under `STACKS_DIR`.
+Runtime certificates, SSH keys, and user-created Compose content should not be committed to Git. DockerManger currently has no application database; Compose files remain the source of truth for managed stacks.
 
 ---
 
@@ -195,13 +187,13 @@ The neutral stack path inside the container is:
 /opt/stacks
 ```
 
-The repository does not assume a specific host storage layout.
+A normal repository checkout stores stacks in `./data/compose_stacks`. Deployments can override that host path without changing DockerManger's internal `/opt/stacks` path.
 
 The default Compose mapping is:
 
 ```yaml
 volumes:
-  - "${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
+  - "${HOST_STACKS_DIR:-./data/compose_stacks}:${STACKS_DIR:-/opt/stacks}"
 ```
 
 For example, a host may keep its Compose projects somewhere else while DockerManger continues to see `/opt/stacks`:
@@ -228,7 +220,7 @@ Important current settings include:
 | --- | --- | --- |
 | `TZ` | `America/Chicago` | Container/application timezone. |
 | `STACKS_DIR` | `/opt/stacks` | Stack directory inside DockerManger. |
-| `DOCKERMANGER_ENABLE_CONSOLE` | `true` | Reserves/enables the future console subsystem configuration. |
+| `DOCKERMANGER_ENABLE_CONSOLE` | `true` | Enables the browser xterm.js + node-pty console subsystem. |
 | `DOCKERMANGER_TERMINAL_TYPE` | `xterm-256color` | Terminal type for future interactive shells. |
 | `DOCKERMANGER_CONSOLE_DEFAULT_TARGET` | `local` | Planned default terminal target. |
 | `DOCKERMANGER_HOST_SHELL_ENABLED` | `false` | Optional host SSH console switch; currently disabled by default. |
@@ -236,7 +228,6 @@ Important current settings include:
 | `DOCKERMANGER_HOST_SSH_PORT` | `22` | Default outbound SSH port. |
 | `DOCKERMANGER_HOST_SSH_USER` | `root` | Default outbound SSH user. |
 | `DOCKERMANGER_HOST_SSH_KEY` | empty | Optional explicit SSH private-key path. |
-| `DOCKERMANGER_HOST_SSH_PASSWORD` | empty | Optional password configuration for future console integration. |
 
 `DOCKERMANGER_HTTPS_PORT` is supplied by `compose.yaml` from the externally published `WEB_HTTPS_PORT`. HTTPS itself is not optional.
 
@@ -259,8 +250,6 @@ Create the persistent directories if they are not already present:
 mkdir -p \
   data/certs \
   data/compose_stacks \
-  data/config \
-  data/database \
   data/ssh
 
 chmod 700 data/ssh
@@ -418,7 +407,7 @@ Planned work includes:
 4. Container/stack logs.
 5. Continue browser-console hardening, target controls, and terminal UX.
 6. Authentication, authorization, and CSRF protection before destructive UI operations.
-7. SQLite-backed application settings/state where useful.
+7. Persistent application settings only if a concrete feature later requires them.
 8. Certificate-management improvements and general UI quality-of-life work.
 
 The goal is to keep DockerManger understandable and maintainable rather than turning it into a large framework.

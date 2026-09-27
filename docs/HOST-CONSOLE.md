@@ -106,7 +106,6 @@ DOCKERMANGER_HOST_SSH_HOST=host.docker.internal
 DOCKERMANGER_HOST_SSH_PORT=22
 DOCKERMANGER_HOST_SSH_USER=root
 DOCKERMANGER_HOST_SSH_KEY=
-DOCKERMANGER_HOST_SSH_PASSWORD=
 ```
 
 Host-console access is disabled by default.
@@ -187,17 +186,7 @@ Do not commit private keys to the repository.
 
 ## Password authentication
 
-The current environment reserves:
-
-```env
-DOCKERMANGER_HOST_SSH_PASSWORD=
-```
-
-for future terminal integration.
-
-Environment variables are not a secure secrets store and may be visible through Docker/container inspection. Key authentication should be preferred when practical.
-
-DockerManger does not currently install `sshpass`. The planned PTY implementation can interact with normal OpenSSH password prompts if password-based host access is intentionally supported.
+DockerManger does not store an SSH password in an environment variable and does not install `sshpass`. If the target host allows password authentication, the normal OpenSSH password prompt is presented through the interactive PTY. Key authentication is preferred for unattended and repeatable administration.
 
 ---
 
@@ -267,7 +256,7 @@ If Bash is unavailable:
 docker exec -it CONTAINER_NAME /bin/sh
 ```
 
-These manual tests are useful for validating Docker socket access and determining the shell behavior the future PTY service needs to support.
+These manual tests are useful for validating Docker socket access and verifying the same SSH behavior used by the PTY service.
 
 ---
 

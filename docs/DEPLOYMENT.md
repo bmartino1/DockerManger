@@ -28,12 +28,12 @@ The repository Compose file maps:
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock
   - ./data:/data
-  - "${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
+  - "${HOST_STACKS_DIR:-./data/compose_stacks}:${STACKS_DIR:-/opt/stacks}"
 ```
 
 This separates:
 
-- `HOST_STACKS_DIR` — deployment-specific host path.
+- `HOST_STACKS_DIR` — optional deployment-specific host path; defaults to `./data/compose_stacks`.
 - `STACKS_DIR` — path DockerManger sees inside the container.
 - `/data` — DockerManger's own persistent application/runtime data.
 
@@ -50,7 +50,7 @@ The normal container-side stack path should remain:
 Generic host:
 
 ```bash
-HOST_STACKS_DIR=/opt/stacks docker compose up -d --build
+docker compose up -d --build
 ```
 
 Host storing Compose projects under `/srv`:
@@ -87,7 +87,7 @@ Variables used directly in Compose expressions such as:
 ```yaml
 "${WEB_HTTP_PORT:-5001}:80"
 "${WEB_HTTPS_PORT:-5443}:443"
-"${HOST_STACKS_DIR:-/opt/stacks}:${STACKS_DIR:-/opt/stacks}"
+"${HOST_STACKS_DIR:-./data/compose_stacks}:${STACKS_DIR:-/opt/stacks}"
 ```
 
 are resolved by Docker Compose from its interpolation environment, not merely because the same variable appears in `env_file:`.
@@ -170,8 +170,6 @@ Prepare persistent directories:
 mkdir -p \
   data/certs \
   data/compose_stacks \
-  data/config \
-  data/database \
   data/ssh
 
 chmod 700 data/ssh
@@ -251,7 +249,7 @@ docker compose logs --tail=100 dockermanger
 docker compose exec dockermanger dockermanger-diagnostics
 ```
 
-The image/container can be replaced without intentionally deleting the persistent `./data` directory or the external `HOST_STACKS_DIR`.
+The image/container can be replaced without intentionally deleting the persistent `./data` directory. If `HOST_STACKS_DIR` points outside `./data`, that external stack directory must also be retained.
 
 Always review local Compose/environment changes before pulling or replacing files in an existing deployment.
 
@@ -344,14 +342,12 @@ Expected contents include:
 data/
 ├── certs/
 ├── compose_stacks/
-├── config/
-├── database/
 └── ssh/
 ```
 
 The container entrypoint links `/root/.ssh` to `/data/ssh` when it is safe to do so.
 
-Do not commit runtime TLS private keys, SSH private keys, generated databases, or generated application configuration.
+Do not commit runtime TLS private keys, SSH private keys, or user-created Compose content.
 
 ---
 

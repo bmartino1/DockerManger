@@ -35,7 +35,6 @@ DockerManger PHP application
             |
             +--> certificates
             +--> SSH client files
-            +--> future SQLite/settings
 ```
 
 DockerManger does **not** run `dockerd` inside its own container. The Docker CLI and Docker Compose v2 plugin communicate with the host daemon through the mounted Docker socket.
@@ -195,8 +194,6 @@ Expected layout:
 /data/
 ├── certs/
 ├── ssh/
-├── database/
-├── config/
 └── compose_stacks/
 ```
 
@@ -205,12 +202,11 @@ Current uses include:
 - `/data/certs` — persistent TLS certificate/key.
 - `/data/ssh` — persistent OpenSSH client configuration, known hosts, and optional keys.
 
-Planned uses include:
+Additional current use:
 
-- `/data/database` — SQLite application state.
-- `/data/config` — generated application settings.
+- `/data/compose_stacks` — default host-side stack storage for the repository Compose deployment. It is mounted at `/opt/stacks` inside DockerManger.
 
-Compose project files do **not** move into SQLite. They remain beneath `STACKS_DIR`.
+DockerManger currently has no application database. Compose project files remain the source of truth beneath `STACKS_DIR`.
 
 ---
 

@@ -12,7 +12,7 @@ FROM phusion/baseimage:noble-1.0.0
 #   Nginx       - HTTP/HTTPS frontend
 #   PHP-FPM     - DockerManger application/backend
 #   Docker CLI  - communicates with the host Docker Engine
-#   Node.js     - reserved for the future WebTTY/xterm.js PTY service
+#   Node.js     - WebSocket + node-pty browser terminal service
 #   OpenSSH     - CLIENT ONLY for optional outbound host administration
 #
 # DockerManger does NOT run:
@@ -72,8 +72,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #
 # PHP + Nginx form the primary application/control plane.
 #
-# Node.js/npm are included for the future xterm.js + PTY/WebSocket terminal
-# service. They are not intended to replace the PHP backend.
+# Node.js/npm provide the xterm.js + node-pty WebSocket terminal service.
+# They are intentionally limited to terminal I/O; PHP remains the control plane.
 #
 # OpenSSH CLIENT is installed for optional outbound host administration:
 #
@@ -85,10 +85,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #
 # DockerManger does NOT run sshd.
 #
-# Certbot and python3-certbot-nginx provide optional Let's Encrypt certificate
-# support for deployments where DockerManger has a suitable hostname/domain.
-# HTTPS is not required for the initial container startup.
-#
 # The remaining utilities make DockerManger useful for Docker, filesystem,
 # network, DNS and general homelab diagnostics.
 #
@@ -99,11 +95,6 @@ RUN apt-get update && \
         nginx \
         php-fpm \
         php-cli \
-        php-curl \
-        php-mbstring \
-        php-xml \
-        php-zip \
-        php-sqlite3 \
         openssh-client \
         openssl \
         nodejs \
@@ -111,13 +102,9 @@ RUN apt-get update && \
         build-essential \
         python3 \
         acl \
-        certbot \
-        python3-certbot-nginx \
         bash \
         curl \
-        wget \
         ca-certificates \
-        gnupg \
         git \
         jq \
         nano \
@@ -134,9 +121,6 @@ RUN apt-get update && \
         netcat-openbsd \
         lsof \
         rsync \
-        unzip \
-        zip \
-        sqlite3 \
         tzdata && \
     rm -rf /var/lib/apt/lists/*
 
@@ -188,10 +172,8 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
 #
 # Host-specific storage layouts must never be baked into this image.
 #
-# /data stores persistent DockerManger application state.
-#
-# /etc/letsencrypt and /var/lib/letsencrypt are used by Certbot when HTTPS
-# certificate management is enabled by a deployment.
+# /data stores persistent DockerManger runtime state such as TLS certificates
+# and SSH client material.
 #
 # ============================================================================
 
@@ -202,9 +184,7 @@ RUN mkdir -p \
         /run/php \
         /etc/service/nginx \
         /etc/service/php-fpm \
-        /etc/letsencrypt \
-        /var/lib/letsencrypt \
-        /var/www/certbot && \
+        /var/www/acme-challenge && \
     rm -f /etc/nginx/sites-enabled/default
 
 
@@ -228,8 +208,7 @@ COPY container/nginx/default.conf \
 # PHP CLI:
 #   Diagnostics
 #   Maintenance
-#   Database initialization/migrations
-#   Future administrative tools
+#   Administrative and diagnostic tools
 #
 # ============================================================================
 
@@ -320,10 +299,10 @@ RUN chmod +x \
 # ============================================================================
 #
 # Port 80:
-#   HTTP / initial setup / LAN deployments / ACME HTTP challenge
+#   Health endpoint, optional ACME HTTP-01 challenge files, and HTTPS redirect
 #
 # Port 443:
-#   HTTPS when TLS is configured
+#   Required DockerManger HTTPS application interface
 #
 # EXPOSE documents the container ports. The deployment Compose file determines
 # which ports are actually published on the Docker host.
@@ -350,9 +329,9 @@ EXPOSE 443
 # ============================================================================
 
 HEALTHCHECK \
-    --interval=30s \
-    --timeout=5s \
-    --start-period=20s \
+    --interval=5m \
+    --timeout=10s \
+    --start-period=30s \
     --retries=3 \
     CMD ["/usr/local/bin/dockermanger-healthcheck"]
 
