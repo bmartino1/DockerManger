@@ -97,6 +97,49 @@ else
 fi
 
 
+echo
+status_info "Console Enabled" "${DOCKERMANGER_ENABLE_CONSOLE:-not configured}"
+status_info "Terminal Type" "${DOCKERMANGER_TERMINAL_TYPE:-not configured}"
+status_info "Default Console Target" "${DOCKERMANGER_CONSOLE_DEFAULT_TARGET:-not configured}"
+
+TERMINAL_DIR="/opt/dockermanger-terminal"
+if [ -d "${TERMINAL_DIR}" ]; then
+    status_ok "Terminal Runtime Directory"
+
+    if [ -f "${TERMINAL_DIR}/package.json" ]; then
+        echo
+        echo "Installed terminal npm packages:"
+        (
+            cd "${TERMINAL_DIR}" &&
+            npm ls --depth=0 2>&1
+        ) || status_warn "npm Dependency Tree"
+
+        echo
+        if (
+            cd "${TERMINAL_DIR}" &&
+            npm audit --omit=dev >/tmp/dockermanger-npm-audit.$$ 2>&1
+        ); then
+            status_ok "npm Production Audit"
+        else
+            status_warn "npm Production Audit"
+        fi
+        cat /tmp/dockermanger-npm-audit.$$ 2>/dev/null || true
+        rm -f /tmp/dockermanger-npm-audit.$$ 2>/dev/null || true
+
+        echo
+        echo "npm outdated (informational; non-zero means updates are available):"
+        (
+            cd "${TERMINAL_DIR}" &&
+            npm outdated 2>&1
+        ) || true
+    else
+        status_warn "Terminal package.json"
+    fi
+else
+    status_warn "Terminal Runtime Directory"
+fi
+
+
 # ----------------------------------------------------------------------------
 # Docker
 # ----------------------------------------------------------------------------
@@ -113,6 +156,58 @@ if docker compose version >/dev/null 2>&1; then
     status_info "Docker Compose" "$(docker compose version 2>/dev/null)"
 else
     status_warn "Docker Compose"
+fi
+
+
+# Validate the services and configuration that make up the application.
+section "DockerManger Services"
+
+if command -v sv >/dev/null 2>&1; then
+    for service in nginx php-fpm dockermanger-terminal; do
+        if sv status "${service}" >/dev/null 2>&1; then
+            status_ok "Service: ${service}"
+            sv status "${service}" 2>/dev/null || true
+        else
+            status_warn "Service: ${service}"
+            sv status "${service}" 2>&1 || true
+        fi
+    done
+else
+    status_warn "runit sv command"
+fi
+
+echo
+if nginx -t >/dev/null 2>&1; then
+    status_ok "Nginx Configuration"
+else
+    status_warn "Nginx Configuration"
+    nginx -t 2>&1 || true
+fi
+
+if php-fpm8.3 -t >/dev/null 2>&1; then
+    status_ok "PHP-FPM Configuration"
+else
+    status_warn "PHP-FPM Configuration"
+    php-fpm8.3 -t 2>&1 || true
+fi
+
+if pgrep -f '/opt/dockermanger-terminal/server.js' >/dev/null 2>&1; then
+    status_ok "Terminal Node Process"
+    status_info "Terminal PID" "$(pgrep -f '/opt/dockermanger-terminal/server.js' | head -1)"
+else
+    status_warn "Terminal Node Process"
+fi
+
+if ss -lnt 2>/dev/null | grep -Eq '127\.0\.0\.1:3000|0\.0\.0\.0:3000|\[::\]:3000'; then
+    status_ok "Terminal Port 3000"
+else
+    status_warn "Terminal Port 3000"
+fi
+
+if curl -fsS --max-time 5 http://127.0.0.1/health >/dev/null 2>&1; then
+    status_ok "HTTP /health"
+else
+    status_warn "HTTP /health"
 fi
 
 if [ -S /var/run/docker.sock ]; then
@@ -178,6 +273,20 @@ else
     status_warn "PHP-FPM Workers"
 fi
 
+echo
+echo "PHP-FPM DockerManger environment:"
+fpm_master="$(pgrep -o php-fpm8.3 2>/dev/null || pgrep -o php-fpm 2>/dev/null || true)"
+if [ -n "${fpm_master}" ] && [ -r "/proc/${fpm_master}/environ" ]; then
+    fpm_env="$(tr '\0' '\n' < "/proc/${fpm_master}/environ" | grep -E '^(DOCKERMANGER_|STACKS_DIR=|TZ=)' || true)"
+    if [ -n "${fpm_env}" ]; then
+        printf '%s\n' "${fpm_env}" | sed -E 's/^(DOCKERMANGER_HOST_SSH_KEY)=.*/\1=[configured value hidden]/'
+    else
+        status_warn "PHP-FPM App Environment"
+    fi
+else
+    status_warn "PHP-FPM Master Environment"
+fi
+
 # Exercise PHP's command execution as the application account. This mirrors
 # DockerManger's Command/Docker layer more closely than a root shell test.
 if runuser -u www-data -- php -r 'exec("docker info 2>&1", $o, $c); exit($c);' >/dev/null 2>&1; then
@@ -230,6 +339,14 @@ if [ -d "${STACKS_DIR}" ]; then
     fi
 
     status_info "Stack Owner/Mode" "$(stat -c '%U:%G %a' "${STACKS_DIR}" 2>/dev/null || echo unknown)"
+
+    if command -v getfacl >/dev/null 2>&1; then
+        echo
+        echo "Stack directory ACL:"
+        getfacl -cp "${STACKS_DIR}" 2>/dev/null || status_warn "Stack Directory ACL"
+    else
+        status_warn "getfacl unavailable"
+    fi
 
     # Root access can hide the exact failure the PHP editor experiences. Test
     # creation as www-data and clean the probe immediately.
@@ -309,6 +426,35 @@ else
 fi
 
 
+echo
+for data_dir in /data/certs /data/ssh; do
+    if [ -d "${data_dir}" ]; then
+        status_ok "${data_dir}"
+        status_info "${data_dir} Owner/Mode" "$(stat -c '%U:%G %a' "${data_dir}" 2>/dev/null || echo unknown)"
+    else
+        status_warn "${data_dir}"
+    fi
+done
+
+if [ -L /root/.ssh ]; then
+    status_ok "/root/.ssh Symlink"
+    status_info "/root/.ssh Target" "$(readlink -f /root/.ssh 2>/dev/null || echo unknown)"
+else
+    status_warn "/root/.ssh Symlink"
+fi
+
+if [ -f /data/certs/dockermanger.crt ] && [ -f /data/certs/dockermanger.key ]; then
+    status_ok "TLS Certificate Pair"
+    status_info "TLS Certificate Mode" "$(stat -c '%a' /data/certs/dockermanger.crt 2>/dev/null || echo unknown)"
+    status_info "TLS Private Key Mode" "$(stat -c '%a' /data/certs/dockermanger.key 2>/dev/null || echo unknown)"
+elif [ -e /data/certs/dockermanger.crt ] || [ -e /data/certs/dockermanger.key ]; then
+    status_warn "TLS Certificate Pair"
+    echo "Only one member of the TLS certificate/key pair exists."
+else
+    status_info "TLS Certificate Pair" "not present"
+fi
+
+
 # ----------------------------------------------------------------------------
 # Network
 # ----------------------------------------------------------------------------
@@ -366,7 +512,7 @@ SSH_KEY="${DOCKERMANGER_HOST_SSH_KEY:-}"
 
 status_info "Host Console Enabled" "${HOST_SHELL_ENABLED}"
 
-if [ "${HOST_SHELL_ENABLED}" = "true" ]; then
+if printf '%s' "${HOST_SHELL_ENABLED}" | grep -Eqi '^(1|true|yes|on)$'; then
 
     status_info "SSH Host" "${SSH_HOST}"
     status_info "SSH Port" "${SSH_PORT}"
@@ -390,12 +536,7 @@ if [ "${HOST_SHELL_ENABLED}" = "true" ]; then
         fi
     fi
 
-    # Never print the actual password.
-    if [ -n "${SSH_PASSWORD}" ]; then
-        status_info "SSH Password" "configured"
-    else
-        status_info "SSH Password" "not configured"
-    fi
+    status_info "SSH Authentication" "interactive password or SSH key"
 
     echo
 
