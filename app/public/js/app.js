@@ -1,5 +1,6 @@
 (() => {
     'use strict';
+    // Client-side filtering only; stack discovery remains server-side.
     const search = document.getElementById('stack-search');
     if (search) search.addEventListener('input', () => {
         const q = search.value.trim().toLowerCase();
@@ -9,6 +10,7 @@
     const refresh = document.getElementById('refresh-dashboard');
     if (refresh) refresh.addEventListener('click', () => location.reload());
 
+    // All mutations go through the named-operation API with the page CSRF token.
     async function post(data, outputElement = null) {
         if (outputElement) { outputElement.hidden = false; outputElement.textContent = 'Working…'; }
         try {
@@ -61,6 +63,13 @@
             if (viewer) viewer.textContent = json.output || json.error || 'No logs.';
             else alert(json.output || json.error || 'No logs.');
         }
+    });
+
+    const refreshContainerLogs = document.getElementById('refresh-container-logs');
+    if (refreshContainerLogs) refreshContainerLogs.addEventListener('click', async () => {
+        const response = await fetch(`/api.php?resource=logs&container=${encodeURIComponent(refreshContainerLogs.dataset.container)}`);
+        const json = await response.json();
+        document.getElementById('container-logs').textContent = json.output || json.error || 'No logs.';
     });
 
     const refreshLogs = document.getElementById('refresh-logs');

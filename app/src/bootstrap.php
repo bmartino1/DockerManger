@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+// Minimal project-local autoloader keeps the runtime dependency-free.
 spl_autoload_register(static function (string $class): void {
     $prefix = 'DockerManger\\';
     if (!str_starts_with($class, $prefix)) return;
@@ -12,6 +13,8 @@ spl_autoload_register(static function (string $class): void {
 $timezone = getenv('TZ') ?: 'UTC';
 if (!@date_default_timezone_set($timezone)) date_default_timezone_set('UTC');
 
+// Sessions currently provide CSRF state; they are also the natural home for the
+// later authentication milestone. Secure cookies are mandatory because HTTPS is.
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name('dockermanger');
     session_set_cookie_params(['httponly'=>true,'secure'=>true,'samesite'=>'Strict','path'=>'/']);

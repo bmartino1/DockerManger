@@ -114,7 +114,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
             </nav>
             <?php if ($thirdPartyContainers !== []): ?>
                 <div class="sidebar-section"><span class="eyebrow">External</span><h3>Containers</h3>
-                <?php foreach ($thirdPartyContainers as $external): ?><a class="external-item" href="#external-<?= $escape($external['name']) ?>"><span class="status <?= !empty($external['running']) ? 'active' : 'exited' ?>"></span><span><?= $escape($external['name']) ?></span><small>3rd party</small></a><?php endforeach; ?>
+                <?php foreach ($thirdPartyContainers as $external): ?><a class="external-item" href="/?container=<?= urlencode($external['name']) ?>"><span class="status <?= !empty($external['running']) ? 'active' : 'exited' ?>"></span><span><?= $escape($external['name']) ?></span><small>3rd party</small></a><?php endforeach; ?>
                 </div>
             <?php endif; ?>
         </aside>
@@ -208,6 +208,13 @@ $stateLabel = static fn(string $state): string => match ($state) {
             </section>
 
 
+            <?php if (empty($storage['writable'])): ?>
+                <section class="notice notice-error storage-warning">
+                    <strong>Compose storage is read-only to DockerManger.</strong>
+                    <span>Stacks can be viewed and controlled, but creating or editing Compose files requires write access to <?= $escape($storage['path']) ?>. Check the host directory mounted to /opt/stacks.</span>
+                </section>
+            <?php endif; ?>
+
             <section class="panel" id="new-stack">
                 <div class="panel-heading"><div><span class="eyebrow">Compose</span><h2>Create Stack</h2></div></div>
                 <form id="create-stack-form" class="create-stack-form" data-csrf="<?= $escape(csrf_token()) ?>">
@@ -226,7 +233,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 <div class="panel-heading"><div><span class="eyebrow">External</span><h2>Third-party Containers</h2></div><span class="count-badge"><?= count($thirdPartyContainers) ?></span></div>
                 <p class="panel-description">Containers without Docker Compose project labels. DockerManger can provide basic lifecycle controls and logs, but their configuration remains externally managed.</p>
                 <?php if ($thirdPartyContainers === []): ?><div class="empty compact"><strong>No third-party containers detected</strong></div><?php else: ?>
-                <div class="container-cards"><?php foreach($thirdPartyContainers as $container): ?><article id="external-<?= $escape($container['name']) ?>" class="container-card third-party-container" data-container="<?= $escape($container['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>"><div><span class="container-state <?= $escape($container['state']) ?>"><span class="status-dot"></span><?= $escape($container['status']) ?></span><h3><?= $escape($container['name']) ?></h3><p><?= $escape($container['image']) ?></p><small>Third-party / externally managed</small></div><div class="container-card-actions"><button class="button button-small container-action" data-action="container-start">Start</button><button class="button button-secondary button-small container-action" data-action="container-stop">Stop</button><button class="button button-secondary button-small container-action" data-action="container-restart">Restart</button><button class="button button-secondary button-small log-container" data-container="<?= $escape($container['name']) ?>">Logs</button><a class="button button-secondary button-small" href="/console.php?container=<?= urlencode($container['name']) ?>">Console</a></div></article><?php endforeach; ?></div>
+                <div class="container-cards"><?php foreach($thirdPartyContainers as $container): ?><article id="external-<?= $escape($container['name']) ?>" class="container-card third-party-container" data-container="<?= $escape($container['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>"><div><span class="container-state <?= $escape($container['state']) ?>"><span class="status-dot"></span><?= $escape($container['status']) ?></span><h3><a class="plain-link" href="/?container=<?= urlencode($container['name']) ?>"><?= $escape($container['name']) ?></a></h3><p><?= $escape($container['image']) ?></p><small>Third-party / externally managed</small></div><div class="container-card-actions"><button class="button button-small container-action" data-action="container-start">Start</button><button class="button button-secondary button-small container-action" data-action="container-stop">Stop</button><button class="button button-secondary button-small container-action" data-action="container-restart">Restart</button><button class="button button-secondary button-small log-container" data-container="<?= $escape($container['name']) ?>">Logs</button><a class="button button-secondary button-small" href="/console.php?container=<?= urlencode($container['name']) ?>">Console</a></div></article><?php endforeach; ?></div>
                 <?php endif; ?>
             </section>
 
@@ -273,9 +280,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                                         </span>
                                     </td>
 
-                                    <td class="primary-cell">
-                                        <?= $escape($container['name']) ?>
-                                    </td>
+                                    <td class="primary-cell"><a class="plain-link" href="/?container=<?= urlencode($container['name']) ?>"><?= $escape($container['name']) ?></a></td>
 
                                     <td><?= $escape($container['image']) ?></td>
 

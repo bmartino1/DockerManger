@@ -8,7 +8,12 @@ use DirectoryIterator;
 use InvalidArgumentException;
 use RuntimeException;
 
-/** Compose discovery, file management and explicit lifecycle operations. */
+/**
+ * Compose discovery, file management and explicit lifecycle operations.
+ *
+ * Compose files remain the source of truth. Every stack path is constrained to
+ * STACKS_DIR, and browser requests can invoke only the named operations below.
+ */
 final class Compose
 {
     private const FILENAMES = ['compose.yaml', 'compose.yml', 'docker-compose.yml', 'docker-compose.yaml'];
@@ -20,6 +25,18 @@ final class Compose
     }
 
     public function stacksDir(): string { return $this->stacksDir; }
+
+    /** Report the mount state used by dashboard diagnostics and error messages. */
+    public function storageStatus(): array
+    {
+        $exists = is_dir($this->stacksDir);
+        return [
+            'path' => $this->stacksDir,
+            'exists' => $exists,
+            'readable' => $exists && is_readable($this->stacksDir),
+            'writable' => $exists && is_writable($this->stacksDir),
+        ];
+    }
 
     public function stacks(): array
     {
@@ -56,37 +73,41 @@ final class Compose
     {
         $stack = $this->requireStack($name);
         $contents = file_get_contents($stack['composeFile']);
-        if ($contents === false) throw new RuntimeException('Unable to read Compose file.');
+        if ($contents === false) throw new RuntimeException('DockerManger cannot read the Compose file at ' . $stack['composeFile'] . '. Check the host bind-mount permissions.');
         return $contents;
     }
 
+    /** Validate a temporary Compose file before replacing the live file. */
     public function save(string $name, string $contents): array
     {
         if (strlen($contents) > 1024 * 1024) throw new RuntimeException('Compose file is too large.');
         $stack = $this->requireStack($name);
         $tmp = $stack['path'] . '/.dockermanger-compose-' . bin2hex(random_bytes(6)) . '.yaml';
-        if (file_put_contents($tmp, $contents, LOCK_EX) === false) throw new RuntimeException('Unable to write temporary Compose file.');
+        if (!is_writable($stack['path'])) throw new RuntimeException('DockerManger cannot edit this stack because ' . $stack['path'] . ' is not writable. Check the host directory mounted to /opt/stacks.');
+        if (file_put_contents($tmp, $contents, LOCK_EX) === false) throw new RuntimeException('DockerManger could not create a temporary validation file in ' . $stack['path'] . '. Check the host bind-mount permissions.');
         try {
             $validation = $this->validate($stack['path'], $tmp);
             if (!$validation['valid']) return ['ok'=>false,'error'=>$validation['error']];
-            if (!rename($tmp, $stack['composeFile'])) throw new RuntimeException('Unable to replace Compose file.');
+            if (!rename($tmp, $stack['composeFile'])) throw new RuntimeException('Compose validation succeeded, but DockerManger could not replace ' . $stack['composeFile'] . '. Check file ownership and directory permissions.');
             return ['ok'=>true,'error'=>null];
         } finally {
             if (is_file($tmp)) @unlink($tmp);
         }
     }
 
+    /** Create a new managed stack only after its Compose file validates. */
     public function create(string $name, string $contents): array
     {
         $name = $this->assertStackName($name);
         if (strlen($contents) > 1024 * 1024) throw new RuntimeException('Compose file is too large.');
         $root = realpath($this->stacksDir);
-        if ($root === false || !is_writable($root)) throw new RuntimeException('Stack root is not writable.');
+        if ($root === false) throw new RuntimeException('The configured stack root does not exist: ' . $this->stacksDir);
+        if (!is_writable($root)) throw new RuntimeException('DockerManger cannot create stacks because ' . $root . ' is not writable. Check the host directory mounted to /opt/stacks.');
         $directory = $root . '/' . $name;
         if (file_exists($directory)) throw new RuntimeException('A stack with that name already exists.');
-        if (!mkdir($directory, 0775, false)) throw new RuntimeException('Unable to create stack directory.');
+        if (!mkdir($directory, 0775, false)) throw new RuntimeException('DockerManger could not create the stack directory ' . $directory . '. Check the stack-root permissions.');
         $file = $directory . '/compose.yaml';
-        if (file_put_contents($file, $contents, LOCK_EX) === false) { @rmdir($directory); throw new RuntimeException('Unable to create Compose file.'); }
+        if (file_put_contents($file, $contents, LOCK_EX) === false) { @rmdir($directory); throw new RuntimeException('DockerManger created the stack directory but could not write ' . $file . '. Check directory ownership and permissions.'); }
         $validation = $this->validate($directory, $file);
         if (!$validation['valid']) { @unlink($file); @rmdir($directory); return ['ok'=>false,'error'=>$validation['error']]; }
         return ['ok'=>true,'error'=>null,'name'=>$name];
@@ -154,6 +175,7 @@ final class Compose
         return null;
     }
 
+    /** Prevent symlinks/path tricks from escaping the configured stack root. */
     private function assertInsideStacksDir(string $path): string
     {
         $root = realpath($this->stacksDir); $resolved = realpath($path);
