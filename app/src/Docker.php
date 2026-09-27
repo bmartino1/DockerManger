@@ -4,62 +4,28 @@ declare(strict_types=1);
 
 namespace DockerManger;
 
+use InvalidArgumentException;
+
 /**
- * Small, controlled Docker CLI interface.
+ * Controlled Docker CLI interface.
  *
- * This class deliberately exposes named Docker operations instead of accepting
- * arbitrary command strings from HTTP requests.
+ * HTTP code may choose from these named operations, but never supplies an
+ * arbitrary Docker command. This keeps the web UI useful without turning the
+ * API into a remote command endpoint.
  */
 final class Docker
 {
-    private string $binary;
+    public function __construct(private string $binary = 'docker') {}
 
-    public function __construct(string $binary = 'docker')
-    {
-        $this->binary = $binary;
-    }
-
-    /**
-     * Return true when the Docker CLI can communicate with the Docker Engine.
-     */
     public function available(): bool
     {
-        $result = Command::run(
-            $this->binary,
-            ['version', '--format', '{{.Server.Version}}'],
-            null,
-            5
-        );
-
-        return $result['exitCode'] === 0 && trim($result['stdout']) !== '';
+        return $this->info()['available'];
     }
 
-    /**
-     * Return basic Docker client/server information for the dashboard.
-     *
-     * @return array{
-     *   available:bool,
-     *   clientVersion:?string,
-     *   serverVersion:?string,
-     *   error:?string
-     * }
-     */
     public function info(): array
     {
-        $client = Command::run(
-            $this->binary,
-            ['version', '--format', '{{.Client.Version}}'],
-            null,
-            5
-        );
-
-        $server = Command::run(
-            $this->binary,
-            ['version', '--format', '{{.Server.Version}}'],
-            null,
-            5
-        );
-
+        $client = Command::run($this->binary, ['version', '--format', '{{.Client.Version}}'], null, 5);
+        $server = Command::run($this->binary, ['version', '--format', '{{.Server.Version}}'], null, 5);
         $available = $server['exitCode'] === 0 && trim($server['stdout']) !== '';
 
         return [
@@ -70,113 +36,84 @@ final class Docker
         ];
     }
 
-    /**
-     * List all containers, including stopped containers.
-     *
-     * Docker's JSON formatter gives us structured records without fragile
-     * whitespace parsing.
-     *
-     * @return array<int,array<string,mixed>>
-     */
     public function containers(): array
     {
-        $result = Command::run(
-            $this->binary,
-            [
-                'ps',
-                '-a',
-                '--no-trunc',
-                '--format',
-                '{{json .}}',
-            ],
-            null,
-            10
-        );
-
-        if ($result['exitCode'] !== 0 || $result['stdout'] === '') {
-            return [];
-        }
+        $result = Command::run($this->binary, ['ps', '-a', '--no-trunc', '--format', '{{json .}}'], null, 10);
+        if ($result['exitCode'] !== 0 || $result['stdout'] === '') return [];
 
         $containers = [];
-
         foreach (preg_split('/\R/', $result['stdout']) ?: [] as $line) {
-            $line = trim($line);
-
-            if ($line === '') {
-                continue;
-            }
-
-            $raw = json_decode($line, true);
-
-            if (!is_array($raw)) {
-                continue;
-            }
-
-            $state = strtolower((string) ($raw['State'] ?? 'unknown'));
-
+            $raw = json_decode(trim($line), true);
+            if (!is_array($raw)) continue;
+            $state = strtolower((string)($raw['State'] ?? 'unknown'));
             $containers[] = [
-                'id' => (string) ($raw['ID'] ?? ''),
-                'name' => (string) ($raw['Names'] ?? ''),
-                'image' => (string) ($raw['Image'] ?? ''),
+                'id' => (string)($raw['ID'] ?? ''),
+                'name' => (string)($raw['Names'] ?? ''),
+                'image' => (string)($raw['Image'] ?? ''),
                 'state' => $state,
-                'status' => (string) ($raw['Status'] ?? ''),
-                'ports' => (string) ($raw['Ports'] ?? ''),
-                'createdAt' => (string) ($raw['CreatedAt'] ?? ''),
-                'labels' => $this->parseLabels((string) ($raw['Labels'] ?? '')),
+                'status' => (string)($raw['Status'] ?? ''),
+                'ports' => (string)($raw['Ports'] ?? ''),
+                'createdAt' => (string)($raw['CreatedAt'] ?? ''),
+                'labels' => $this->parseLabels((string)($raw['Labels'] ?? '')),
                 'running' => $state === 'running',
             ];
         }
-
-        usort(
-            $containers,
-            static fn(array $a, array $b): int =>
-                strcasecmp((string) $a['name'], (string) $b['name'])
-        );
-
+        usort($containers, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
         return $containers;
     }
 
-    /**
-     * Return the Compose project name reported by Docker labels, if present.
-     */
+    public function container(string $identifier): ?array
+    {
+        $identifier = $this->assertContainerIdentifier($identifier);
+        foreach ($this->containers() as $container) {
+            if ($container['id'] === $identifier || str_starts_with($container['id'], $identifier) || $container['name'] === $identifier) {
+                return $container;
+            }
+        }
+        return null;
+    }
+
+    public function start(string $identifier): array { return $this->containerAction('start', $identifier); }
+    public function stop(string $identifier): array { return $this->containerAction('stop', $identifier); }
+    public function restart(string $identifier): array { return $this->containerAction('restart', $identifier); }
+
+    public function logs(string $identifier, int $tail = 250): array
+    {
+        $identifier = $this->assertContainerIdentifier($identifier);
+        $tail = max(10, min($tail, 2000));
+        return Command::run($this->binary, ['logs', '--tail', (string)$tail, '--timestamps', $identifier], null, 15);
+    }
+
+    private function containerAction(string $action, string $identifier): array
+    {
+        $identifier = $this->assertContainerIdentifier($identifier);
+        return Command::run($this->binary, [$action, $identifier], null, 60);
+    }
+
+    private function assertContainerIdentifier(string $identifier): string
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/', $identifier)) {
+            throw new InvalidArgumentException('Invalid container identifier.');
+        }
+        return $identifier;
+    }
+
     public static function composeProject(array $container): ?string
     {
         $labels = $container['labels'] ?? [];
-
-        if (!is_array($labels)) {
-            return null;
-        }
-
-        $project = trim((string) ($labels['com.docker.compose.project'] ?? ''));
-
+        if (!is_array($labels)) return null;
+        $project = trim((string)($labels['com.docker.compose.project'] ?? ''));
         return $project !== '' ? $project : null;
     }
 
-    /**
-     * @return array<string,string>
-     */
     private function parseLabels(string $labels): array
     {
         $parsed = [];
-
-        if ($labels === '') {
-            return $parsed;
+        foreach ($labels === '' ? [] : explode(',', $labels) as $label) {
+            [$key, $value] = array_pad(explode('=', trim($label), 2), 2, '');
+            if ($key !== '') $parsed[$key] = $value;
         }
-
-        foreach (explode(',', $labels) as $label) {
-            $label = trim($label);
-
-            if ($label === '') {
-                continue;
-            }
-
-            [$key, $value] = array_pad(explode('=', $label, 2), 2, '');
-
-            if ($key !== '') {
-                $parsed[$key] = $value;
-            }
-        }
-
         return $parsed;
     }
 }

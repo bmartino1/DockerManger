@@ -63,7 +63,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <h2>Stacks</h2>
                 </div>
 
-                <span class="count-badge"><?= count($stacks) ?></span>
+                <a class="button button-small" href="#new-stack">+ Compose</a>
             </div>
 
             <label class="search-box">
@@ -84,8 +84,9 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($stacks as $stack): ?>
-                        <article
-                            class="stack-item"
+                        <a
+                            class="stack-item stack-link"
+                            href="/?stack=<?= urlencode((string) $stack['name']) ?>"
                             data-stack-name="<?= $escape(strtolower((string) $stack['name'])) ?>"
                         >
                             <div class="stack-title">
@@ -107,10 +108,15 @@ $stateLabel = static fn(string $state): string => match ($state) {
                                     Compose validation failed
                                 </small>
                             <?php endif; ?>
-                        </article>
+                        </a>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </nav>
+            <?php if ($thirdPartyContainers !== []): ?>
+                <div class="sidebar-section"><span class="eyebrow">External</span><h3>Containers</h3>
+                <?php foreach ($thirdPartyContainers as $external): ?><a class="external-item" href="#external-<?= $escape($external['name']) ?>"><span class="status <?= !empty($external['running']) ? 'active' : 'exited' ?>"></span><span><?= $escape($external['name']) ?></span><small>3rd party</small></a><?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </aside>
 
         <main class="content">
@@ -198,6 +204,29 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         <strong>Docker Engine is unavailable.</strong>
                         <span><?= $escape($docker['error'] ?? 'Check the Docker socket and host engine.') ?></span>
                     </div>
+                <?php endif; ?>
+            </section>
+
+
+            <section class="panel" id="new-stack">
+                <div class="panel-heading"><div><span class="eyebrow">Compose</span><h2>Create Stack</h2></div></div>
+                <form id="create-stack-form" class="create-stack-form" data-csrf="<?= $escape(csrf_token()) ?>">
+                    <label><span>Stack name</span><input name="stack" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]*" placeholder="my-stack"></label>
+                    <label><span>compose.yaml</span><textarea class="compose-editor compose-editor-small" name="compose" required spellcheck="false">services:
+  app:
+    image: nginx:alpine
+    restart: unless-stopped
+</textarea></label>
+                    <div class="editor-actions"><button class="button" type="submit">Validate &amp; Create</button><span class="muted-cell">Creates a new directory beneath <?= $escape($system['stacksDir']) ?>.</span></div>
+                </form>
+                <div id="create-stack-result" class="operation-output" hidden></div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-heading"><div><span class="eyebrow">External</span><h2>Third-party Containers</h2></div><span class="count-badge"><?= count($thirdPartyContainers) ?></span></div>
+                <p class="panel-description">Containers without Docker Compose project labels. DockerManger can provide basic lifecycle controls and logs, but their configuration remains externally managed.</p>
+                <?php if ($thirdPartyContainers === []): ?><div class="empty compact"><strong>No third-party containers detected</strong></div><?php else: ?>
+                <div class="container-cards"><?php foreach($thirdPartyContainers as $container): ?><article id="external-<?= $escape($container['name']) ?>" class="container-card third-party-container" data-container="<?= $escape($container['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>"><div><span class="container-state <?= $escape($container['state']) ?>"><span class="status-dot"></span><?= $escape($container['status']) ?></span><h3><?= $escape($container['name']) ?></h3><p><?= $escape($container['image']) ?></p><small>Third-party / externally managed</small></div><div class="container-card-actions"><button class="button button-small container-action" data-action="container-start">Start</button><button class="button button-secondary button-small container-action" data-action="container-stop">Stop</button><button class="button button-secondary button-small container-action" data-action="container-restart">Restart</button><button class="button button-secondary button-small log-container" data-container="<?= $escape($container['name']) ?>">Logs</button><a class="button button-secondary button-small" href="/console.php?container=<?= urlencode($container['name']) ?>">Console</a></div></article><?php endforeach; ?></div>
                 <?php endif; ?>
             </section>
 
