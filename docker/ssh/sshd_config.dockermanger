@@ -1,0 +1,7 @@
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+X11Forwarding no
+AllowTcpForwarding yes
+PrintMotd no
