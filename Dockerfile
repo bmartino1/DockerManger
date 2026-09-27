@@ -108,6 +108,9 @@ RUN apt-get update && \
         openssl \
         nodejs \
         npm \
+        build-essential \
+        python3 \
+        acl \
         certbot \
         python3-certbot-nginx \
         bash \
@@ -258,12 +261,25 @@ COPY container/nginx/run \
 COPY container/php/run \
     /etc/service/php-fpm/run
 
+COPY container/terminal/run \
+    /etc/service/dockermanger-terminal/run
+
 
 # ============================================================================
 # DockerManger Application
 # ============================================================================
 
 COPY app/ /var/www/dockermanger/
+
+# Install the small PTY/WebSocket helper and vendor xterm.js into the public
+# tree so the console does not depend on a third-party CDN at runtime.
+COPY container/terminal/package.json /opt/dockermanger-terminal/package.json
+COPY container/terminal/server.js /opt/dockermanger-terminal/server.js
+RUN cd /opt/dockermanger-terminal && \
+    npm install --omit=dev --no-audit --no-fund && \
+    mkdir -p /var/www/dockermanger/public/vendor/xterm && \
+    cp node_modules/@xterm/xterm/lib/xterm.js /var/www/dockermanger/public/vendor/xterm/xterm.js && \
+    cp node_modules/@xterm/xterm/css/xterm.css /var/www/dockermanger/public/vendor/xterm/xterm.css
 
 
 # ============================================================================
@@ -292,6 +308,7 @@ COPY container/scripts/diagnostics.sh \
 RUN chmod +x \
         /etc/service/nginx/run \
         /etc/service/php-fpm/run \
+        /etc/service/dockermanger-terminal/run \
         /usr/local/bin/dockermanger-entrypoint \
         /usr/local/bin/dockermanger-healthcheck \
         /usr/local/bin/dockermanger-diagnostics && \

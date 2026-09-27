@@ -294,17 +294,42 @@ fi
 # ============================================================================
 # Stack Storage
 # ============================================================================
+#
+# The stack tree is commonly a host bind mount owned by a host account whose
+# UID/GID has no useful meaning inside this image. Do not recursively chown it:
+# doing so would unexpectedly change ownership of an administrator's Compose
+# repository on the host. Instead grant the PHP account an ACL and a default
+# ACL so existing files and newly-created stack content remain writable while
+# preserving their host ownership.
+#
+# Set DOCKERMANGER_MANAGE_STACK_PERMISSIONS=false to make DockerManger strictly
+# observe existing host permissions instead.
 
-if [ -r "${STACKS_DIR}" ]; then
-    echo "[DockerManger] Stack directory readable."
+MANAGE_STACK_PERMISSIONS="${DOCKERMANGER_MANAGE_STACK_PERMISSIONS:-true}"
+
+if [ "${MANAGE_STACK_PERMISSIONS,,}" = "true" ]; then
+    if setfacl -Rm "u:${PHP_FPM_USER}:rwX" "${STACKS_DIR}" 2>/dev/null && \
+       setfacl -Rm "d:u:${PHP_FPM_USER}:rwX" "${STACKS_DIR}" 2>/dev/null; then
+        echo "[DockerManger] Stack ACL prepared for ${PHP_FPM_USER} without changing host ownership."
+    else
+        echo "[DockerManger] WARNING: Unable to apply stack ACLs to ${STACKS_DIR}."
+        echo "[DockerManger] WARNING: Compose viewing/lifecycle may work, but create/edit operations may be read-only."
+    fi
 else
-    echo "[DockerManger] WARNING: Stack directory is not readable."
+    echo "[DockerManger] Automatic stack permission management disabled."
 fi
 
-if [ -w "${STACKS_DIR}" ]; then
-    echo "[DockerManger] Stack directory writable."
+if runuser -u "${PHP_FPM_USER}" -- test -r "${STACKS_DIR}"; then
+    echo "[DockerManger] Stack directory readable by ${PHP_FPM_USER}."
 else
-    echo "[DockerManger] WARNING: Stack directory is not writable."
+    echo "[DockerManger] WARNING: Stack directory is not readable by ${PHP_FPM_USER}."
+fi
+
+if runuser -u "${PHP_FPM_USER}" -- test -w "${STACKS_DIR}"; then
+    echo "[DockerManger] Stack directory writable by ${PHP_FPM_USER}."
+else
+    echo "[DockerManger] WARNING: Stack directory is not writable by ${PHP_FPM_USER}."
+    echo "[DockerManger] WARNING: Host path mounted at ${STACKS_DIR} must permit UID $(id -u "${PHP_FPM_USER}") to write."
 fi
 
 

@@ -1,0 +1,12 @@
+{
+  "name": "dockermanger-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Controlled WebSocket PTY service for DockerManger browser consoles",
+  "main": "server.js",
+  "dependencies": {
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -48,6 +48,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 Docker <?= !empty($docker['available']) ? 'Connected' : 'Unavailable' ?>
             </span>
 
+            <a class="button button-secondary" href="/console.php?target=local">Console</a>
             <button class="button button-secondary" type="button" id="refresh-dashboard">
                 Refresh
             </button>

@@ -698,3 +698,10 @@ tbody tr:hover {
 /* Shared detail-page helpers. Keep standalone containers visually consistent
    with Compose stack pages without implying they have editable Compose state. */
 .plain-link{color:inherit;text-decoration:none}.plain-link:hover{text-decoration:underline}.storage-warning{margin:0 0 18px}.detail-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.detail-list>div{padding:14px 16px;border-right:1px solid #223142;border-bottom:1px solid #223142;min-width:0}.detail-list>div:nth-child(2n){border-right:0}.detail-list span{display:block;color:#8da2b8;font-size:11px;margin-bottom:5px}.detail-list strong,.detail-list code{display:block;overflow-wrap:anywhere}.detail-section{padding:14px 16px;border-bottom:1px solid #223142}.detail-section:last-child{border-bottom:0}.detail-section h3{margin:0 0 10px}.detail-row,.mount-row{display:grid;gap:5px;padding:8px 0;border-bottom:1px solid #1a2735}.detail-row:last-child,.mount-row:last-child{border-bottom:0}.detail-row code,.mount-row code{color:#9fb3c8;overflow-wrap:anywhere}.mount-row span{color:#8da2b8;font-size:11px;text-transform:uppercase}@media(max-width:700px){.detail-list{grid-template-columns:1fr}.detail-list>div{border-right:0}}
+
+/* Interactive terminal --------------------------------------------------- */
+.terminal-panel { overflow: hidden; }
+.terminal-surface { height: min(68vh, 720px); min-height: 360px; padding: 10px; background: #080d12; }
+.terminal-surface .xterm { height: 100%; }
+.terminal-status { padding: 8px 12px; border-top: 1px solid var(--border, #263241); color: var(--muted, #8fa4bd); font-size: .85rem; }
+.terminal-targets { display: flex; gap: 8px; flex-wrap: wrap; }

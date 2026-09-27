@@ -230,9 +230,33 @@ if [ -d "${STACKS_DIR}" ]; then
     fi
 
     if [ -w "${STACKS_DIR}" ]; then
-        status_ok "Stack Directory Writable"
+        status_ok "Stack Directory Writable (root)"
     else
-        status_warn "Stack Directory Writable"
+        status_warn "Stack Directory Writable (root)"
+    fi
+
+    status_info "Stack Owner/Mode" "$(stat -c '%U:%G %a' "${STACKS_DIR}" 2>/dev/null || echo unknown)"
+
+    # Root access can hide the exact failure the PHP editor experiences. Test
+    # creation as www-data and clean the probe immediately.
+    write_probe="${STACKS_DIR}/.dockermanger-write-test-$$"
+    if runuser -u www-data -- touch "${write_probe}" 2>/dev/null; then
+        status_ok "Stack Create as www-data"
+        rm -f "${write_probe}"
+    else
+        status_warn "Stack Create as www-data"
+    fi
+
+    first_stack="$(find "${STACKS_DIR}" -mindepth 1 -maxdepth 1 -type d -print -quit 2>/dev/null || true)"
+    if [ -n "${first_stack}" ]; then
+        stack_probe="${first_stack}/.dockermanger-write-test-$$"
+        if runuser -u www-data -- touch "${stack_probe}" 2>/dev/null; then
+            status_ok "Existing Stack Write as www-data"
+            rm -f "${stack_probe}"
+        else
+            status_warn "Existing Stack Write as www-data"
+            status_info "Probe Stack" "${first_stack}"
+        fi
     fi
 
     echo

@@ -2,13 +2,11 @@
 
 ## Current status
 
-The browser terminal is **planned but not implemented yet**.
+The initial browser terminal is implemented with xterm.js plus a small Node/node-pty WebSocket helper. The helper listens only on container loopback; Nginx proxies the same-origin `/terminal-ws` endpoint.
 
-DockerManger's container image already includes Node.js/npm and the OpenSSH client so the terminal subsystem can be added without redesigning the main PHP control plane.
+The service accepts named targets only: the DockerManger shell, a validated Docker container name, or optional host SSH. It does not provide an arbitrary command HTTP endpoint.
 
-The intended implementation uses xterm.js in the browser and a small PTY/WebSocket helper for interactive terminal I/O.
-
-PHP remains responsible for application authorization and deciding whether a terminal session may be created.
+PHP remains the application/control plane. Authentication and per-session terminal authorization are still future hardening work, so console-enabled deployments should remain on a trusted LAN/VPN.
 
 ---
 
@@ -66,7 +64,7 @@ A practical shell-selection order is expected to be similar to:
 
 with graceful failure when the target container has no suitable interactive shell.
 
-The exact `docker exec` implementation still needs to be built and tested as part of the terminal milestone.
+The current helper probes the running container for Bash or `sh`, then launches the selected shell through `docker exec -it`.
 
 ---
 
@@ -205,7 +203,7 @@ DockerManger does not currently install `sshpass`. The planned PTY implementatio
 
 ## Testing host SSH manually
 
-Before browser-terminal integration exists, host reachability can be tested from inside DockerManger.
+Host reachability can also be tested manually from inside DockerManger when diagnosing the browser console.
 
 Open a shell:
 
@@ -243,7 +241,7 @@ A failed SSH test should be debugged as host SSH/network/authentication configur
 
 ## Testing managed-container shells manually
 
-Before WebTTY is implemented, the same Docker CLI behavior can be tested directly from the DockerManger container.
+The same Docker CLI behavior can be tested directly from the DockerManger container when diagnosing a container-console failure.
 
 Enter DockerManger:
 

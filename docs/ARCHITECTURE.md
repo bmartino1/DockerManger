@@ -216,9 +216,7 @@ Compose project files do **not** move into SQLite. They remain beneath `STACKS_D
 
 ## Terminal architecture
 
-The browser terminal is planned but is not implemented in the current PHP application.
-
-Node.js/npm are installed in the image specifically so a small PTY/WebSocket helper can be added without moving the main application to Node.
+The initial browser terminal is implemented as a small Node/node-pty WebSocket helper behind Nginx. xterm.js runs in the browser while PHP remains the application/control plane. The helper accepts only named local/container/host targets rather than arbitrary command strings.
 
 Planned flow:
 

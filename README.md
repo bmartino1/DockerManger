@@ -8,12 +8,12 @@ The project is being built around a deliberately small control plane:
 - **PHP-FPM** runs the DockerManger application and API.
 - **Docker CLI + Compose v2** communicate with the host Docker Engine through `/var/run/docker.sock`.
 - **Compose files remain the source of truth** beneath the configured stack directory.
-- **Node.js/npm are reserved for the future WebTTY/xterm.js PTY/WebSocket service.**
+- **Node.js + node-pty provide the small WebSocket PTY service used by the browser console; PHP remains the control plane.**
 - **OpenSSH client only** is installed for optional outbound host-console access. DockerManger does not run an SSH server.
 
 DockerManger is intended for trusted home/lab environments where a simple Docker/Compose workflow is preferred over a larger management platform.
 
-> **Development status:** DockerManger is under active development. The current application provides the dashboard, Docker/Compose discovery, Compose validation, container visibility, and read-only JSON resources. Container/stack mutation controls, authentication, the Compose editor, logs, and browser terminal are still being built.
+> **Development status:** DockerManger is under active development. The current application provides Docker/Compose discovery, controlled lifecycle actions, Compose creation/editing with validation, stack/container logs, standalone-container detail pages, and an initial xterm.js browser console. Authentication/authorization and additional console hardening remain future milestones; keep the UI on a trusted LAN/VPN.
 
 ---
 
@@ -45,7 +45,11 @@ Current application behavior includes:
   - `exited`
   - `degraded`
 - Stack search/filtering in the dashboard.
-- Read-only JSON resources for system, container, and stack information.
+- Controlled stack/container lifecycle actions and logs.
+- Compose create/edit with validation before replacing the live file.
+- Standalone/third-party container detail pages.
+- Initial xterm.js console targets for DockerManger, containers, and optional outbound host SSH.
+- JSON resources for system, container, stack, logs, and controlled actions.
 
 The current read-only API resources are:
 
@@ -66,12 +70,15 @@ DockerManger/
 ├── app/
 │   ├── public/
 │   │   ├── api.php
+│   │   ├── console.php
 │   │   ├── health.php
 │   │   ├── index.php
-│   │   ├── css/
-│   │   │   └── app.css
+│   │   ├── favicon.ico
+│   │   ├── favicon.png
+│   │   ├── css/app.css
 │   │   └── js/
-│   │       └── app.js
+│   │       ├── app.js
+│   │       └── console.js
 │   ├── src/
 │   │   ├── bootstrap.php
 │   │   ├── Command.php
@@ -80,7 +87,9 @@ DockerManger/
 │   │   ├── Stack.php
 │   │   └── SystemInfo.php
 │   └── templates/
-│       └── dashboard.php
+│       ├── container.php
+│       ├── dashboard.php
+│       └── stack.php
 ├── container/
 │   ├── nginx/
 │   │   ├── default.conf
@@ -88,16 +97,20 @@ DockerManger/
 │   ├── php/
 │   │   ├── docker-manager.ini
 │   │   └── run
+│   ├── terminal/
+│   │   ├── package.json
+│   │   ├── run
+│   │   └── server.js
 │   └── scripts/
 │       ├── diagnostics.sh
 │       ├── entrypoint.sh
 │       └── healthcheck.sh
 ├── data/
-│   ├── certs/
-│   ├── compose_stacks/
-│   ├── config/
-│   ├── database/
-│   └── ssh/
+│   ├── certs/.gitkeep
+│   ├── compose_stacks/.gitkeep
+│   ├── config/.gitkeep
+│   ├── database/.gitkeep
+│   └── ssh/.gitkeep
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── DEPLOYMENT.md
@@ -198,6 +211,8 @@ HOST_STACKS_DIR=/srv/docker/stacks docker compose up -d --build
 ```
 
 `STACKS_DIR` inside DockerManger should normally remain `/opt/stacks`.
+
+DockerManger needs write access to this mount for Compose creation/editing. By default the entrypoint uses filesystem ACLs to grant `www-data` read/write access while preserving host ownership. Set `DOCKERMANGER_MANAGE_STACK_PERMISSIONS=false` when the host administrator wants to manage those permissions entirely outside DockerManger. Avoid using `chmod 777` as the normal deployment model.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for deployment examples.
 
@@ -367,9 +382,9 @@ Authentication and CSRF protection are planned before destructive web controls a
 
 ## Console model
 
-The browser-terminal subsystem is not implemented yet.
+The first browser-terminal implementation is now included. It deliberately keeps interactive PTY traffic separate from PHP's controlled HTTP API. The Node service listens on container loopback only; Nginx exposes it as the same-origin `/terminal-ws` WebSocket endpoint.
 
-The intended separation is:
+The separation is:
 
 ```text
 Browser
@@ -401,7 +416,7 @@ Planned work includes:
 2. Controlled Compose actions such as up, down, restart, and pull.
 3. Compose file viewing/editing with path containment and validation.
 4. Container/stack logs.
-5. WebTTY/xterm.js terminal support.
+5. Continue browser-console hardening, target controls, and terminal UX.
 6. Authentication, authorization, and CSRF protection before destructive UI operations.
 7. SQLite-backed application settings/state where useful.
 8. Certificate-management improvements and general UI quality-of-life work.
