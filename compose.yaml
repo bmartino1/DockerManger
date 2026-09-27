@@ -52,10 +52,10 @@ services:
     # Web Interface
     # -----------------------------------------------------------------------
     #
-    # DockerManger exposes both HTTP and HTTPS.
+    # DockerManger requires HTTPS for the application UI.
     #
-    # HTTP is retained so Nginx can redirect normal browser requests to HTTPS.
-    # HTTPS is the preferred DockerManger web interface.
+    # HTTP is retained only so Nginx can serve the health/ACME paths and
+    # redirect normal browser requests to the mandatory HTTPS interface.
     #
     # Default host ports:
     #

@@ -123,7 +123,10 @@ fi
 
 if [ -S /var/run/docker.sock ]; then
     status_ok "Docker Socket"
-    ls -l /var/run/docker.sock
+    status_info "Socket Owner" "$(stat -c '%U' /var/run/docker.sock 2>/dev/null || echo unknown)"
+    status_info "Socket Group" "$(stat -c '%G' /var/run/docker.sock 2>/dev/null || echo unknown)"
+    status_info "Socket Numeric GID" "$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo unknown)"
+    status_info "Socket Mode" "$(stat -c '%a' /var/run/docker.sock 2>/dev/null || echo unknown)"
 else
     status_warn "Docker Socket"
     echo "Expected socket:"
@@ -133,19 +136,66 @@ fi
 echo
 
 if docker info >/dev/null 2>&1; then
-    status_ok "Docker Engine Connection"
-
-    server_version="$(docker version \
-        --format '{{.Server.Version}}' 2>/dev/null || true)"
-
-    if [ -n "${server_version}" ]; then
-        status_info "Docker Server" "${server_version}"
-    fi
+    status_ok "Docker as root"
 else
-    status_warn "Docker Engine Connection"
-    echo "DockerManger could not communicate with the Docker Engine."
+    status_warn "Docker as root"
 fi
 
+# The web application executes Docker commands from PHP-FPM as www-data.
+# Testing only as root can hide the most common docker.sock permission error.
+if id www-data >/dev/null 2>&1; then
+    status_info "www-data Account" "$(id www-data 2>/dev/null)"
+
+    if runuser -u www-data -- docker info >/dev/null 2>&1; then
+        status_ok "Docker as www-data"
+    else
+        status_warn "Docker as www-data"
+        runuser -u www-data -- docker info 2>&1 | tail -n 3 || true
+    fi
+else
+    status_warn "www-data Account"
+fi
+
+# Inspect the credentials attached to live FPM workers. PHP-FPM can drop
+# supplementary groups when creating workers, so `id www-data` alone does not
+# prove that the web process can access docker.sock.
+fpm_workers="$(pgrep -P "$(pgrep -o php-fpm8.3 2>/dev/null || true)" php-fpm8.3 2>/dev/null || true)"
+
+if [ -n "${fpm_workers}" ]; then
+    first_worker="$(printf '%s\n' "${fpm_workers}" | head -1)"
+    worker_uid="$(awk '/^Uid:/ {print $2}' "/proc/${first_worker}/status" 2>/dev/null || true)"
+    worker_gid="$(awk '/^Gid:/ {print $2}' "/proc/${first_worker}/status" 2>/dev/null || true)"
+    worker_groups="$(awk '/^Groups:/ {$1=""; sub(/^ /, ""); print}' "/proc/${first_worker}/status" 2>/dev/null || true)"
+
+    status_info "PHP-FPM Worker PID" "${first_worker}"
+    status_info "PHP-FPM Worker UID" "${worker_uid:-unknown}"
+    status_info "PHP-FPM Worker GID" "${worker_gid:-unknown}"
+    status_info "PHP-FPM Worker Groups" "${worker_groups:-unknown}"
+
+    if [ -S /var/run/docker.sock ]; then
+        socket_gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)"
+        if [ -n "${socket_gid}" ] && { [ "${worker_gid}" = "${socket_gid}" ] || printf ' %s ' "${worker_groups}" | grep -q " ${socket_gid} "; }; then
+            status_ok "FPM Socket Group Access"
+        else
+            status_warn "FPM Socket Group Access"
+        fi
+    fi
+else
+    status_warn "PHP-FPM Workers"
+fi
+
+# Exercise PHP's command execution as the application account. This mirrors
+# DockerManger's Command/Docker layer more closely than a root shell test.
+if runuser -u www-data -- php -r 'exec("docker info 2>&1", $o, $c); exit($c);' >/dev/null 2>&1; then
+    status_ok "PHP Docker Command"
+else
+    status_warn "PHP Docker Command"
+fi
+
+server_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || true)"
+if [ -n "${server_version}" ]; then
+    status_info "Docker Server" "${server_version}"
+fi
 
 # ----------------------------------------------------------------------------
 # Docker Containers

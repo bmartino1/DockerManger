@@ -44,6 +44,8 @@ SSH_DIR="${DATA_DIR}/ssh"
 TLS_CERT="${CERT_DIR}/dockermanger.crt"
 TLS_KEY="${CERT_DIR}/dockermanger.key"
 NGINX_CONFIG="/etc/nginx/conf.d/dockermanger.conf"
+PHP_FPM_POOL="/etc/php/8.3/fpm/pool.d/www.conf"
+PHP_FPM_USER="www-data"
 
 
 # ============================================================================
@@ -228,8 +230,64 @@ nginx -t
 
 if [ -S /var/run/docker.sock ]; then
     echo "[DockerManger] Docker socket detected."
+
+    # The Docker socket group is a host property. Its numeric GID is not
+    # portable between Debian, Raspberry Pi OS, NAS distributions, and other
+    # Docker hosts. Discover the mounted socket GID at runtime rather than
+    # hard-coding a docker group ID in the image or Compose file.
+    DOCKER_SOCKET_GID="$(stat -c '%g' /var/run/docker.sock)"
+    DOCKER_SOCKET_GROUP="$(getent group "${DOCKER_SOCKET_GID}" | cut -d: -f1 || true)"
+
+    if [ -z "${DOCKER_SOCKET_GROUP}" ]; then
+        DOCKER_SOCKET_GROUP="dockermanger-docker"
+
+        # A stale group with our preferred name but a different GID should not
+        # prevent startup. Use a GID-specific fallback name in that case.
+        if getent group "${DOCKER_SOCKET_GROUP}" >/dev/null 2>&1; then
+            DOCKER_SOCKET_GROUP="dockermanger-docker-${DOCKER_SOCKET_GID}"
+        fi
+
+        groupadd --gid "${DOCKER_SOCKET_GID}" "${DOCKER_SOCKET_GROUP}"
+        echo "[DockerManger] Created Docker socket group ${DOCKER_SOCKET_GROUP} (${DOCKER_SOCKET_GID})."
+    else
+        echo "[DockerManger] Docker socket group ${DOCKER_SOCKET_GROUP} (${DOCKER_SOCKET_GID}) detected."
+    fi
+
+    # Keep the account useful for CLI diagnostics and maintenance commands.
+    usermod -aG "${DOCKER_SOCKET_GROUP}" "${PHP_FPM_USER}"
+
+    # PHP-FPM deliberately resets supplementary groups when workers drop from
+    # root to www-data. Therefore supplementary membership alone is not enough
+    # for the web UI. Make the socket group the FPM workers' primary group.
+    if [ -f "${PHP_FPM_POOL}" ]; then
+        sed -i -E \
+            "s|^[[:space:]]*group[[:space:]]*=.*$|group = ${DOCKER_SOCKET_GROUP}|" \
+            "${PHP_FPM_POOL}"
+
+        echo "[DockerManger] PHP-FPM group set to ${DOCKER_SOCKET_GROUP}."
+    else
+        echo "[DockerManger] ERROR: PHP-FPM pool configuration not found: ${PHP_FPM_POOL}"
+        exit 1
+    fi
 else
     echo "[DockerManger] WARNING: /var/run/docker.sock not detected."
+    echo "[DockerManger] WARNING: Docker management will be unavailable in the web UI."
+fi
+
+# PHP-FPM clears most inherited environment variables by default. Explicitly
+# pass the deployment timezone into the www pool so application bootstrap code
+# sees the same TZ value as the container and diagnostic tools.
+PHP_TIMEZONE="${TZ:-UTC}"
+
+if [ -f "${PHP_FPM_POOL}" ]; then
+    sed -i '/^[[:space:]]*env\[TZ\][[:space:]]*=/d' "${PHP_FPM_POOL}"
+    printf '\nenv[TZ] = %s\n' "${PHP_TIMEZONE}" >> "${PHP_FPM_POOL}"
+
+    echo "[DockerManger] PHP-FPM timezone environment set to ${PHP_TIMEZONE}."
+
+    # Catch an invalid dynamically generated pool configuration before runit
+    # starts the service and turns the problem into a restart loop.
+    php-fpm8.3 -t
 fi
 
 
