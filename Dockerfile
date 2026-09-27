@@ -140,10 +140,10 @@ COPY docker/php/docker-manager.ini \
 # Only the services DockerManger actually needs are supervised here.
 # There is deliberately no sshd service.
 #
-COPY docker/services/nginx/run \
+COPY container/services/nginx/run \
     /etc/service/nginx/run
 
-COPY docker/services/php-fpm/run \
+COPY container/services/php-fpm/run \
     /etc/service/php-fpm/run
 
 # ---------------------------------------------------------------------------
