@@ -45,7 +45,7 @@ $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, E
 </textarea></label>
 <label><span>.env (optional)</span><textarea class="compose-editor env-editor-small" name="env" spellcheck="false" placeholder="APP_PORT=8080
 TZ=America/Chicago"></textarea></label>
-<div class="editor-actions"><button class="button" type="submit">Validate &amp; Create</button><span class="muted-cell">Creates compose.yaml and an empty .env beneath <?= $escape($system['stacksDir']) ?>.</span></div>
+<div class="editor-actions"><button class="button" type="submit">Validate &amp; Create</button><span class="muted-cell">Creates compose.yaml and .env beneath <?= $escape($system['stacksDir']) ?>.</span></div>
 </form><div id="create-stack-result" class="operation-output" hidden></div>
 </section></div>
 </main></div><script src="/js/app.js"></script></body></html>

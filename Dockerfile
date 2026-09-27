@@ -280,8 +280,33 @@ COPY container/scripts/healthcheck.sh \
 COPY container/scripts/diagnostics.sh \
     /usr/local/bin/dockermanger-diagnostics
 
-COPY container/scripts/mc-cd.sh \
-    /etc/profile.d/dockermanger-mc.sh
+# Make Midnight Commander preserve the directory selected when it exits.
+# This belongs in the image profile rather than as a separate repository script.
+RUN cat >> /etc/profile <<'EOF'
+
+# DockerManger Midnight Commander helper.
+# `mc` runs in a child process, so use -P to return its final directory and
+# apply that directory to the current interactive shell after MC exits.
+mc_cd() {
+    MC_TMPFILE="$(mktemp /tmp/mc-last-dir.XXXXXX)" || return 1
+
+    command mc -P "$MC_TMPFILE"
+    MC_STATUS=$?
+
+    if [ -f "$MC_TMPFILE" ]; then
+        LAST_DIR="$(cat "$MC_TMPFILE")"
+        rm -f "$MC_TMPFILE"
+
+        if [ -n "$LAST_DIR" ] && [ -d "$LAST_DIR" ]; then
+            cd "$LAST_DIR" || return 1
+        fi
+    fi
+
+    return "$MC_STATUS"
+}
+
+alias mc='mc_cd'
+EOF
 
 
 # ============================================================================
