@@ -63,7 +63,7 @@
             if (!json.ok) throw new Error(json.result?.error || json.error || 'Conversion failed.');
             const compose = json.result?.compose || '';
             const target = document.getElementById('new-stack-compose');
-            if (target) target.value = compose;
+            if (target) { target.value = compose; target.dispatchEvent(new Event('input', { bubbles: true })); }
             if (composerizeResult) composerizeResult.textContent = 'Converted. Review the generated Compose before creating the stack.';
         } catch (error) {
             if (composerizeResult) composerizeResult.textContent = `Conversion failed: ${error.message}`;
@@ -72,11 +72,43 @@
 
     const create = document.getElementById('create-stack-form');
     const createResult = document.getElementById('create-stack-result');
-    if (create) create.addEventListener('submit', async event => {
-        event.preventDefault();
-        const json = await post({action:'stack-create', stack:create.elements.stack.value, compose:create.elements.compose.value, env:create.elements.env?.value || '', csrf_token:create.dataset.csrf}, createResult);
-        if (json.ok) location.href = `/?stack=${encodeURIComponent(create.elements.stack.value)}`;
-    });
+    if (create) {
+        const stackInput = create.elements.stack;
+        const composeInput = create.elements.compose;
+        const nameHint = document.getElementById('stack-name-source');
+        let lastComposeName = '';
+
+        const explicitComposeName = text => {
+            const match = String(text || '').match(/^name\s*:\s*(["']?)([A-Za-z0-9][A-Za-z0-9_.-]{0,63})\1\s*(?:#.*)?$/m);
+            return match ? match[2] : '';
+        };
+        const syncStackName = () => {
+            const composeName = explicitComposeName(composeInput.value);
+            if (composeName) {
+                if (!stackInput.value || stackInput.value === lastComposeName) stackInput.value = composeName;
+                stackInput.value = composeName;
+                stackInput.readOnly = true;
+                if (nameHint) nameHint.textContent = 'Top-level Compose name: is the stack/project source of truth.';
+            } else {
+                stackInput.readOnly = false;
+                if (lastComposeName && stackInput.value === lastComposeName) stackInput.value = '';
+                if (nameHint) nameHint.textContent = 'Used when compose.yaml does not define a top-level name: field.';
+            }
+            lastComposeName = composeName;
+        };
+
+        composeInput.addEventListener('input', syncStackName);
+        syncStackName();
+
+        create.addEventListener('submit', async event => {
+            event.preventDefault();
+            const json = await post({action:'stack-create', stack:stackInput.value, compose:composeInput.value, env:create.elements.env?.value || '', csrf_token:create.dataset.csrf}, createResult);
+            if (json.ok) {
+                const effectiveName = json.result?.name || stackInput.value;
+                location.href = `/?stack=${encodeURIComponent(effectiveName)}`;
+            }
+        });
+    }
 
     document.addEventListener('click', async event => {
         const action = event.target.closest('.container-action');

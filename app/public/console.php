@@ -53,11 +53,26 @@ if ($container !== null) {
         <a class="button button-secondary" href="<?= $escape($back) ?>">← Back</a>
     </header>
     <main class="content">
-        <section class="page-heading">
-            <span class="eyebrow">Console</span>
-            <h1><?= $container ? $escape($container['name']) : 'DockerManger Console' ?></h1>
-            <p>The terminal transport accepts controlled targets only; it is not a generic HTTP command API.</p>
+        <section class="page-heading console-heading">
+            <div>
+                <span class="eyebrow">Console</span>
+                <h1><?= $container ? $escape($container['name']) : ($target === 'host' ? 'Host Console (SSH)' : 'DockerManger Console') ?></h1>
+                <p>The terminal transport accepts controlled targets only; it is not a generic HTTP command API.</p>
+            </div>
+            <?php if ($container === null): ?>
+                <div class="console-target-switch" aria-label="Console target">
+                    <a class="button <?= $target === 'local' ? '' : 'button-secondary' ?>" href="/console.php?target=local">DockerManger Console</a>
+                    <?php if ($hostEnabled): ?>
+                        <a class="button <?= $target === 'host' ? '' : 'button-secondary' ?>" href="/console.php?target=host">Host Console (SSH)</a>
+                    <?php else: ?>
+                        <span class="button button-secondary disabled-button" title="Enable DOCKERMANGER_HOST_SHELL_ENABLED to use the host SSH console.">Host Console disabled</span>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </section>
+        <?php if ($container === null && $target === 'host'): ?>
+            <div class="notice notice-warning"><strong>SSH-backed host session</strong><span>Connecting as <?= $escape(getenv('DOCKERMANGER_HOST_SSH_USER') ?: 'root') ?>@<?= $escape(getenv('DOCKERMANGER_HOST_SSH_HOST') ?: 'host.docker.internal') ?>:<?= $escape(getenv('DOCKERMANGER_HOST_SSH_PORT') ?: '22') ?>. Commands run with that host account's privileges.</span></div>
+        <?php endif; ?>
 
         <?php if (!$consoleEnabled): ?>
             <div class="notice notice-error"><strong>Console is disabled.</strong><span>Set DOCKERMANGER_ENABLE_CONSOLE=true and recreate DockerManger to enable it.</span></div>
@@ -67,12 +82,7 @@ if ($container !== null) {
             <section class="panel terminal-panel">
                 <div class="panel-heading">
                     <div><span class="eyebrow">PTY</span><h2 id="terminal-title">Connecting…</h2></div>
-                    <?php if ($container === null): ?>
-                        <div class="terminal-targets">
-                            <a class="button button-small <?= $target === 'local' ? '' : 'button-secondary' ?>" href="/console.php?target=local">DockerManger</a>
-                            <?php if ($hostEnabled): ?><a class="button button-small <?= $target === 'host' ? '' : 'button-secondary' ?>" href="/console.php?target=host">Host SSH</a><?php endif; ?>
-                        </div>
-                    <?php endif; ?>
+                    <?php if ($container === null): ?><span class="count-badge"><?= $target === 'host' ? 'Host SSH' : 'DockerManger' ?></span><?php endif; ?>
                 </div>
                 <div id="terminal" class="terminal-surface" data-target="<?= $escape($target) ?>" data-container="<?= $escape($container['name'] ?? '') ?>"></div>
                 <div id="terminal-status" class="terminal-status">Opening secure WebSocket terminal…</div>

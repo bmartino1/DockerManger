@@ -122,7 +122,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
 
         <main class="content">
 
-            <section class="page-heading">
+            <section class="page-heading dashboard-heading">
                 <div>
                     <span class="eyebrow">Overview</span>
                     <h1>Docker Dashboard</h1>
@@ -132,6 +132,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         · stacks at <?= $escape($system['stacksDir']) ?>
                     </p>
                 </div>
+                <a class="button create-stack-cta" href="/create.php"><strong>+ Create Stack</strong><span>Compose or Docker Run</span></a>
             </section>
 
             <section class="stats" aria-label="DockerManger summary">
@@ -245,6 +246,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                                 <th>Image</th>
                                 <th>Management</th>
                                 <th>Ports</th>
+                                <th>Volumes / Mounts</th>
                             </tr>
                             </thead>
 
@@ -275,6 +277,15 @@ $stateLabel = static fn(string $state): string => match ($state) {
 
                                     <td class="muted-cell">
                                         <?= $escape($container['ports'] ?: '—') ?>
+                                    </td>
+                                    <td class="muted-cell mount-summary">
+                                        <?php $mounts = $containerDetailsById[$container['id']]['mounts'] ?? []; ?>
+                                        <?php if ($mounts === []): ?>—<?php else: ?>
+                                            <?php foreach (array_slice($mounts, 0, 3) as $mount): ?>
+                                                <span title="<?= $escape(($mount['source'] ?? '') . ' → ' . ($mount['destination'] ?? '')) ?>"><?= $escape(($mount['type'] ?? 'mount') . ': ' . ($mount['destination'] ?? '')) ?></span>
+                                            <?php endforeach; ?>
+                                            <?php if (count($mounts) > 3): ?><small>+<?= count($mounts) - 3 ?> more</small><?php endif; ?>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

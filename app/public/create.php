@@ -37,7 +37,7 @@ $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, E
 <section class="panel">
 <div class="panel-heading"><div><span class="eyebrow">Managed Stack</span><h2>compose.yaml</h2></div></div>
 <form id="create-stack-form" class="create-stack-form" data-csrf="<?= $escape(csrf_token()) ?>">
-<label><span>Stack name</span><input name="stack" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]*" placeholder="my-stack"></label>
+<label><span>Stack name</span><input name="stack" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]*" placeholder="my-stack"><small id="stack-name-source" class="muted-cell">Used when compose.yaml does not define a top-level <code>name:</code>.</small></label>
 <label><span>Compose</span><textarea id="new-stack-compose" class="compose-editor compose-editor-small" name="compose" required spellcheck="false">services:
   app:
     image: nginx:alpine

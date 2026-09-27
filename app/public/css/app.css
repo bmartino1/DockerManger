@@ -709,3 +709,13 @@ tbody tr:hover {
 /* Management/source labels keep the all-containers table useful without
    duplicating a separate external-container panel on the dashboard. */
 .management-badge{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #304256;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.management-badge.managed{color:#5bd5a1;border-color:#245b49;background:#0d211b}.management-badge.external{color:#e7bd72;border-color:#5c4828;background:#211a0d}.management-badge.system{color:#8fc6ff;border-color:#315b83;background:#0e1c2a}.create-page{max-width:1500px;margin:0 auto}.create-grid{align-items:start}.env-panel{margin-bottom:18px}.env-editor-small{min-height:150px}.create-stack-form code,.panel-description code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#c9dbed}
+
+/* Final-pass affordances: make creation and global console target selection obvious. */
+.dashboard-heading,.console-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.create-stack-cta{display:grid;gap:2px;min-width:180px;text-align:left;text-decoration:none}
+.create-stack-cta span{font-size:11px;font-weight:500;opacity:.8}
+.console-target-switch{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.disabled-button{opacity:.5;cursor:not-allowed;pointer-events:none}
+.notice-warning{border-color:#8b6829;background:#241d10;color:#f0d69b}
+.mount-summary span{display:block;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.mount-summary small{display:block;margin-top:3px}

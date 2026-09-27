@@ -89,4 +89,17 @@ $stackCounts = Stack::counts($stacks);
 $running = count(array_filter($containers, static fn(array $c): bool => !empty($c['running'])));
 $stopped = count($containers) - $running;
 $invalidStacks = count(array_filter($stacks, static fn(array $s): bool => empty($s['valid'])));
+
+// Dashboard mount summaries come from docker inspect, but environment values are
+// deliberately not exposed because they frequently contain secrets.
+$containerDetailsById = [];
+if ($docker['available']) {
+    foreach ($containers as $container) {
+        try {
+            $containerDetailsById[$container['id']] = $dockerClient->inspect($container['id']);
+        } catch (Throwable) {
+            $containerDetailsById[$container['id']] = ['mounts' => []];
+        }
+    }
+}
 require dirname(__DIR__) . '/templates/dashboard.php';

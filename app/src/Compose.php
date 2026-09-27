@@ -108,6 +108,10 @@ final class Compose
     {
         if (strlen($contents) > 1024 * 1024) throw new RuntimeException('Compose file is too large.');
         $stack = $this->requireStack($name);
+        $composeName = $this->explicitComposeName($contents);
+        if ($composeName !== null && $composeName !== $stack['name']) {
+            throw new RuntimeException('The top-level Compose name is "' . $composeName . '", but this stack is "' . $stack['name'] . '". Create/rename the stack with the matching project name instead of changing stack identity in place.');
+        }
         $tmp = $stack['path'] . '/.dockermanger-compose-' . bin2hex(random_bytes(6)) . '.yaml';
         if (!is_writable($stack['path'])) throw new RuntimeException('DockerManger cannot edit this stack because ' . $stack['path'] . ' is not writable. Check the host directory mounted to /opt/stacks.');
         if (file_put_contents($tmp, $contents, LOCK_EX) === false) throw new RuntimeException('DockerManger could not create a temporary validation file in ' . $stack['path'] . '. Check the host bind-mount permissions.');
@@ -121,10 +125,18 @@ final class Compose
         }
     }
 
-    /** Create a new managed stack only after its Compose file validates. */
+    /**
+     * Create a new managed stack only after its Compose file validates.
+     *
+     * A top-level Compose `name:` is the authoritative project name when one
+     * is present. Otherwise the name entered in DockerManger is used.
+     * `container_name:` never changes stack identity.
+     */
     public function create(string $name, string $contents, string $envContents = ''): array
     {
-        $name = $this->assertStackName($name);
+        $requestedName = $this->assertStackName($name);
+        $composeName = $this->explicitComposeName($contents);
+        $name = $composeName ?? $requestedName;
         if (strlen($contents) > 1024 * 1024) throw new RuntimeException('Compose file is too large.');
         if (strlen($envContents) > 256 * 1024) throw new RuntimeException('Environment file is too large.');
         $root = realpath($this->stacksDir);
@@ -144,7 +156,7 @@ final class Compose
         }
         $validation = $this->validate($directory, $file);
         if (!$validation['valid']) { @unlink($envFile); @unlink($file); @rmdir($directory); return ['ok'=>false,'error'=>$validation['error']]; }
-        return ['ok'=>true,'error'=>null,'name'=>$name];
+        return ['ok'=>true,'error'=>null,'name'=>$name,'requestedName'=>$requestedName,'nameSource'=>$composeName !== null ? 'compose' : 'form'];
     }
 
     public function up(string $name): array { return $this->runForStack($name, ['up','-d'], 180); }
@@ -209,7 +221,7 @@ final class Compose
     {
         $stack = $this->requireStack($name);
         if (!$stack['valid']) return ['command'=>'','exitCode'=>2,'stdout'=>'','stderr'=>(string)$stack['validationError'],'output'=>(string)$stack['validationError']];
-        return Command::run($this->dockerBinary, array_merge(['compose','-f',$stack['composeFile']], $arguments), $stack['path'], $timeout);
+        return Command::run($this->dockerBinary, array_merge(['compose','-p',$stack['name'],'-f',$stack['composeFile']], $arguments), $stack['path'], $timeout);
     }
 
     private function requireStack(string $name): array
@@ -226,6 +238,19 @@ final class Compose
             throw new InvalidArgumentException('Invalid stack name.');
         }
         return $name;
+    }
+
+    /** Return a conventional top-level Compose name, if explicitly set. */
+    private function explicitComposeName(string $contents): ?string
+    {
+        // Stack names are intentionally restricted to the same conservative
+        // character set DockerManger accepts for directory names. Matching at
+        // column zero avoids confusing service-level properties with project
+        // identity. Quoted and unquoted scalar names are supported.
+        if (!preg_match('/^name\s*:\s*(["\']?)([A-Za-z0-9][A-Za-z0-9_.-]{0,63})\1\s*(?:#.*)?$/m', $contents, $match)) {
+            return null;
+        }
+        return $this->assertStackName($match[2]);
     }
 
     private function findComposeFile(string $directory): ?string
