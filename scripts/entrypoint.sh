@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
-mkdir -p "${STACKS_DIR:-/VMs/docker}" /data /run/php
+mkdir -p "${STACKS_DIR:-/opt/stacks}" /data /run/php
 exec "$@"

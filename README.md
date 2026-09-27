@@ -17,7 +17,23 @@ The Docker/LXC/PVE host is responsible for installing, configuring and securing 
 
 ### Stack path
 
-Default deployment uses `/VMs/docker` on both sides of the bind mount so Compose paths remain predictable.
+The neutral container default is `/opt/stacks`.
+
+The host path is deployment-specific and belongs in `compose.yaml` or `.env`, not in the image. For a generic installation:
+
+```yaml
+volumes:
+  - /opt/stacks:/opt/stacks
+```
+
+A homelab can map a different host directory while keeping the neutral container path:
+
+```yaml
+volumes:
+  - /your/host/docker/stacks:/opt/stacks
+```
+
+Set `HOST_STACKS_DIR` to the host path and leave `STACKS_DIR=/opt/stacks` unless there is a specific reason to make the paths identical.
 
 ### Build/test
 
