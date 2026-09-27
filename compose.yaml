@@ -115,7 +115,18 @@ services:
     environment:
       # Container timezone.
       TZ: "${TZ:-America/Chicago}"
+      
+      # --------------------------------------------------------------------------
+      # Web / HTTPS
+      # --------------------------------------------------------------------------
 
+      # DockerManger prefers HTTPS for normal browser access.
+      DOCKERMANGER_HTTPS_ENABLED=true
+
+      # External HTTPS port used when generating HTTP -> HTTPS redirects.
+      DOCKERMANGER_HTTPS_PORT=5443
+
+      
       # Stack directory as seen INSIDE DockerManger.
       STACKS_DIR: "${STACKS_DIR:-/opt/stacks}"
 
