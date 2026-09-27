@@ -37,14 +37,28 @@ services:
     pids_limit: 1024
 
     # -----------------------------------------------------------------------
-    # Web interface
+    # Web Interface
     # -----------------------------------------------------------------------
     #
-    # WEB_PORT controls the port exposed on the Docker host.
-    # DockerManger listens on port 80 inside the container.
+    # DockerManger exposes both HTTP and HTTPS.
+    #
+    # HTTP is retained so Nginx can redirect requests to HTTPS.
+    # HTTPS is the normal DockerManger web interface.
+    #
+    # Default host ports:
+    #
+    #   HTTP  -> 5001
+    #   HTTPS -> 5443
+    #
+    # Examples:
+    #
+    #   http://docker-host:5001
+    #       redirects to:
+    #   https://docker-host:5443
     #
     ports:
-      - "${WEB_PORT:-5001}:80"
+      - "${WEB_HTTP_PORT:-5001}:80"
+      - "${WEB_HTTPS_PORT:-5443}:443"
 
     # -----------------------------------------------------------------------
     # Storage / Docker Engine
