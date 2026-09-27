@@ -727,3 +727,11 @@ tbody tr:hover {
 
 /* Managed-stack runtime summary mirrors the external-container quick glance. */
 .host-console-summary{margin-bottom:18px}.embedded-notice{margin:0 14px 14px}.runtime-container-list{display:grid;gap:14px;padding:14px}.runtime-container-card{border:1px solid #223142;border-radius:9px;overflow:hidden;background:#0d141c}.runtime-container-title{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px}.runtime-container-title h3{margin:6px 0 2px}.runtime-container-title small{color:#8da2b8}.runtime-info-grid{border-top:1px solid #223142}.runtime-detail-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #223142}.runtime-detail-grid>div{padding:14px}.runtime-detail-grid>div+div{border-left:1px solid #223142}.runtime-detail-grid h4{margin:0 0 10px}.runtime-detail-grid p{display:grid;gap:3px;margin:0 0 10px}.runtime-detail-grid p:last-child{margin-bottom:0}.runtime-detail-grid small{color:#8da2b8;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}@media(max-width:800px){.runtime-detail-grid{grid-template-columns:1fr}.runtime-detail-grid>div+div{border-left:0;border-top:1px solid #223142}}
+
+
+/* Final control alignment and sidebar create affordance.
+   Anchors and <button> elements share identical geometry in the top bar. */
+.button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;vertical-align:middle;line-height:1.1}
+.sidebar-compose-button{border-color:#4f8fc8;background:#122235;color:#eaf2fb;font-weight:700;box-shadow:0 0 0 1px rgba(92,173,255,.08) inset}
+.sidebar-compose-button:hover{border-color:#78baff;background:#18304a}
+.top-actions>.button{height:36px}

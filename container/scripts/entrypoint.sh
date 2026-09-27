@@ -273,16 +273,35 @@ else
     echo "[DockerManger] WARNING: Docker management will be unavailable in the web UI."
 fi
 
-# PHP-FPM clears most inherited environment variables by default. Explicitly
-# pass the deployment timezone into the www pool so application bootstrap code
-# sees the same TZ value as the container and diagnostic tools.
+# PHP-FPM clears inherited environment variables by default. Keep that safer
+# default and explicitly whitelist only the DockerManger settings the web UI
+# needs. This is important for Host Console: PHP renders the target selector,
+# while the Node PTY service opens the SSH session, so both processes must see
+# the same host-console configuration.
 PHP_TIMEZONE="${TZ:-UTC}"
 
 if [ -f "${PHP_FPM_POOL}" ]; then
-    sed -i '/^[[:space:]]*env\[TZ\][[:space:]]*=/d' "${PHP_FPM_POOL}"
-    printf '\nenv[TZ] = %s\n' "${PHP_TIMEZONE}" >> "${PHP_FPM_POOL}"
+    set_fpm_env() {
+        local name="$1"
+        local value="$2"
+        sed -i "/^[[:space:]]*env\[${name}\][[:space:]]*=/d" "${PHP_FPM_POOL}"
+        printf 'env[%s] = %s\n' "${name}" "${value}" >> "${PHP_FPM_POOL}"
+    }
 
-    echo "[DockerManger] PHP-FPM timezone environment set to ${PHP_TIMEZONE}."
+    set_fpm_env "TZ" "${PHP_TIMEZONE}"
+    set_fpm_env "DOCKERMANGER_ENABLE_CONSOLE" "${DOCKERMANGER_ENABLE_CONSOLE:-true}"
+    set_fpm_env "DOCKERMANGER_HOST_SHELL_ENABLED" "${DOCKERMANGER_HOST_SHELL_ENABLED:-false}"
+    set_fpm_env "DOCKERMANGER_HOST_SSH_HOST" "${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
+    set_fpm_env "DOCKERMANGER_HOST_SSH_PORT" "${DOCKERMANGER_HOST_SSH_PORT:-22}"
+    set_fpm_env "DOCKERMANGER_HOST_SSH_USER" "${DOCKERMANGER_HOST_SSH_USER:-root}"
+    if [ -n "${DOCKERMANGER_HOST_SSH_KEY:-}" ]; then
+        set_fpm_env "DOCKERMANGER_HOST_SSH_KEY" "${DOCKERMANGER_HOST_SSH_KEY}"
+    else
+        sed -i '/^[[:space:]]*env\[DOCKERMANGER_HOST_SSH_KEY\][[:space:]]*=/d' "${PHP_FPM_POOL}"
+    fi
+
+    echo "[DockerManger] PHP-FPM application environment prepared."
+    echo "[DockerManger] PHP-FPM Host Console enabled: ${DOCKERMANGER_HOST_SHELL_ENABLED:-false}."
 
     # Catch an invalid dynamically generated pool configuration before runit
     # starts the service and turns the problem into a restart loop.

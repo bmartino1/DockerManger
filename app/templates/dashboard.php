@@ -64,7 +64,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <h2>Stacks</h2>
                 </div>
 
-                <a class="button button-small" href="/create.php">+ Compose</a>
+                <a class="button button-secondary button-small sidebar-compose-button" href="/create.php">+ Compose</a>
             </div>
 
             <label class="search-box">
