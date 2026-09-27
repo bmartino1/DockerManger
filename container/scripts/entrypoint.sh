@@ -122,53 +122,11 @@ elif [ -L /root/.ssh ]; then
     echo "[DockerManger] SSH client storage ready."
 else
     echo "[DockerManger] WARNING: /root/.ssh exists and is not a symlink."
-    echo "[DockerManger] WARNING: Persistent SSH storage at ${SSH_DIR} is not linked."
+    echo "[DockerManger] WARNING: Persistent SSH storage at ${SSH_DIR} is not li                                                                                                                                    nked."
 fi
-
-# Older repository revisions used placeholder directories named `config` and
-# `known_hosts`. OpenSSH requires both paths to be regular files. Repair only
-# those harmless placeholder directories; never remove real SSH material.
-for ssh_file in config known_hosts; do
-    ssh_path="${SSH_DIR}/${ssh_file}"
-    if [ -d "${ssh_path}" ]; then
-        if find "${ssh_path}" -mindepth 1 -maxdepth 1 ! -name '.gitkeep' -print -quit 2>/dev/null | grep -q .; then
-            echo "[DockerManger] WARNING: ${ssh_path} is a directory containing data; leaving it untouched."
-        else
-            rm -f "${ssh_path}/.gitkeep" 2>/dev/null || true
-            rmdir "${ssh_path}" 2>/dev/null || true
-            echo "[DockerManger] Repaired SSH ${ssh_file} placeholder directory."
-        fi
-    fi
-done
 
 # OpenSSH rejects private keys/directories with overly permissive permissions.
-# The container runs the outbound SSH client as root, so keep this state owned
-# by root while allowing OpenSSH to update known_hosts normally.
-chown root:root "${SSH_DIR}"
 chmod 700 "${SSH_DIR}"
-
-touch "${SSH_DIR}/known_hosts"
-chown root:root "${SSH_DIR}/known_hosts"
-chmod 600 "${SSH_DIR}/known_hosts"
-
-if [ -e "${SSH_DIR}/config" ]; then
-    if [ -f "${SSH_DIR}/config" ]; then
-        chown root:root "${SSH_DIR}/config"
-        chmod 600 "${SSH_DIR}/config"
-    else
-        echo "[DockerManger] WARNING: ${SSH_DIR}/config is not a regular file."
-    fi
-fi
-
-# Tighten standard private-key permissions when those files are present.
-for ssh_key in "${SSH_DIR}"/id_*; do
-    [ -f "${ssh_key}" ] || continue
-    case "$(basename "${ssh_key}")" in
-        *.pub) chmod 644 "${ssh_key}" ;;
-        *) chmod 600 "${ssh_key}" ;;
-    esac
-    chown root:root "${ssh_key}"
-done
 
 
 # ============================================================================
@@ -243,7 +201,7 @@ fi
 # mounted/build context is never changed.
 # ============================================================================
 
-if ! [[ "${HTTPS_PORT}" =~ ^[0-9]+$ ]] || [ "${HTTPS_PORT}" -lt 1 ] || [ "${HTTPS_PORT}" -gt 65535 ]; then
+if ! [[ "${HTTPS_PORT}" =~ ^[0-9]+$ ]] || [ "${HTTPS_PORT}" -lt 1 ] || [ "${HTTP                                                                                                                                    S_PORT}" -gt 65535 ]; then
     echo "[DockerManger] ERROR: Invalid DOCKERMANGER_HTTPS_PORT: ${HTTPS_PORT}"
     exit 1
 fi
@@ -277,7 +235,7 @@ if [ -S /var/run/docker.sock ]; then
     # Docker hosts. Discover the mounted socket GID at runtime rather than
     # hard-coding a docker group ID in the image or Compose file.
     DOCKER_SOCKET_GID="$(stat -c '%g' /var/run/docker.sock)"
-    DOCKER_SOCKET_GROUP="$(getent group "${DOCKER_SOCKET_GID}" | cut -d: -f1 || true)"
+    DOCKER_SOCKET_GROUP="$(getent group "${DOCKER_SOCKET_GID}" | cut -d: -f1 ||                                                                                                                                     true)"
 
     if [ -z "${DOCKER_SOCKET_GROUP}" ]; then
         DOCKER_SOCKET_GROUP="dockermanger-docker"
@@ -289,9 +247,9 @@ if [ -S /var/run/docker.sock ]; then
         fi
 
         groupadd --gid "${DOCKER_SOCKET_GID}" "${DOCKER_SOCKET_GROUP}"
-        echo "[DockerManger] Created Docker socket group ${DOCKER_SOCKET_GROUP} (${DOCKER_SOCKET_GID})."
+        echo "[DockerManger] Created Docker socket group ${DOCKER_SOCKET_GROUP}                                                                                                                                     (${DOCKER_SOCKET_GID})."
     else
-        echo "[DockerManger] Docker socket group ${DOCKER_SOCKET_GROUP} (${DOCKER_SOCKET_GID}) detected."
+        echo "[DockerManger] Docker socket group ${DOCKER_SOCKET_GROUP} (${DOCKE                                                                                                                                    R_SOCKET_GID}) detected."
     fi
 
     # Keep the account useful for CLI diagnostics and maintenance commands.
@@ -302,63 +260,29 @@ if [ -S /var/run/docker.sock ]; then
     # for the web UI. Make the socket group the FPM workers' primary group.
     if [ -f "${PHP_FPM_POOL}" ]; then
         sed -i -E \
-            "s|^[[:space:]]*group[[:space:]]*=.*$|group = ${DOCKER_SOCKET_GROUP}|" \
+            "s|^[[:space:]]*group[[:space:]]*=.*$|group = ${DOCKER_SOCKET_GROUP}                                                                                                                                    |" \
             "${PHP_FPM_POOL}"
 
         echo "[DockerManger] PHP-FPM group set to ${DOCKER_SOCKET_GROUP}."
     else
-        echo "[DockerManger] ERROR: PHP-FPM pool configuration not found: ${PHP_FPM_POOL}"
+        echo "[DockerManger] ERROR: PHP-FPM pool configuration not found: ${PHP_                                                                                                                                    FPM_POOL}"
         exit 1
     fi
 else
     echo "[DockerManger] WARNING: /var/run/docker.sock not detected."
-    echo "[DockerManger] WARNING: Docker management will be unavailable in the web UI."
+    echo "[DockerManger] WARNING: Docker management will be unavailable in the w                                                                                                                                    eb UI."
 fi
 
-# PHP-FPM clears inherited environment variables by default. Keep that safer
-# default and explicitly whitelist only the DockerManger settings the web UI
-# needs. This is important for Host Console: PHP renders the target selector,
-# while the Node PTY service opens the SSH session, so both processes must see
-# the same host-console configuration.
+# PHP-FPM clears most inherited environment variables by default. Explicitly
+# pass the deployment timezone into the www pool so application bootstrap code
+# sees the same TZ value as the container and diagnostic tools.
 PHP_TIMEZONE="${TZ:-UTC}"
 
 if [ -f "${PHP_FPM_POOL}" ]; then
-    set_fpm_env() {
-        local name="$1"
-        local value="$2"
-        local escaped_value
+    sed -i '/^[[:space:]]*env\[TZ\][[:space:]]*=/d' "${PHP_FPM_POOL}"
+    printf '\nenv[TZ] = %s\n' "${PHP_TIMEZONE}" >> "${PHP_FPM_POOL}"
 
-        # Remove any previous generated value first so repeated starts remain
-        # idempotent. PHP-FPM treats an unquoted blank assignment as an invalid
-        # "empty value", so never emit one.
-        sed -i "/^[[:space:]]*env\\[${name}\\][[:space:]]*=/d" "${PHP_FPM_POOL}"
-
-        if [ -z "${value}" ]; then
-            echo "[DockerManger] WARNING: Skipping empty PHP-FPM environment value: ${name}"
-            return 0
-        fi
-
-        # Quote generated values. Escape the two characters that are special
-        # inside a PHP-FPM double-quoted configuration value.
-        escaped_value="${value//\\/\\\\}"
-        escaped_value="${escaped_value//\"/\\\"}"
-        printf 'env[%s] = "%s"\\n' "${name}" "${escaped_value}" >> "${PHP_FPM_POOL}"
-    }
-
-    set_fpm_env "TZ" "${PHP_TIMEZONE}"
-    set_fpm_env "DOCKERMANGER_ENABLE_CONSOLE" "${DOCKERMANGER_ENABLE_CONSOLE:-true}"
-    set_fpm_env "DOCKERMANGER_HOST_SHELL_ENABLED" "${DOCKERMANGER_HOST_SHELL_ENABLED:-false}"
-    set_fpm_env "DOCKERMANGER_HOST_SSH_HOST" "${DOCKERMANGER_HOST_SSH_HOST:-host.docker.internal}"
-    set_fpm_env "DOCKERMANGER_HOST_SSH_PORT" "${DOCKERMANGER_HOST_SSH_PORT:-22}"
-    set_fpm_env "DOCKERMANGER_HOST_SSH_USER" "${DOCKERMANGER_HOST_SSH_USER:-root}"
-    if [ -n "${DOCKERMANGER_HOST_SSH_KEY:-}" ]; then
-        set_fpm_env "DOCKERMANGER_HOST_SSH_KEY" "${DOCKERMANGER_HOST_SSH_KEY}"
-    else
-        sed -i '/^[[:space:]]*env\[DOCKERMANGER_HOST_SSH_KEY\][[:space:]]*=/d' "${PHP_FPM_POOL}"
-    fi
-
-    echo "[DockerManger] PHP-FPM application environment prepared."
-    echo "[DockerManger] PHP-FPM Host Console enabled: ${DOCKERMANGER_HOST_SHELL_ENABLED:-false}."
+    echo "[DockerManger] PHP-FPM timezone environment set to ${PHP_TIMEZONE}."
 
     # Catch an invalid dynamically generated pool configuration before runit
     # starts the service and turns the problem into a restart loop.
@@ -385,10 +309,10 @@ MANAGE_STACK_PERMISSIONS="${DOCKERMANGER_MANAGE_STACK_PERMISSIONS:-true}"
 if [ "${MANAGE_STACK_PERMISSIONS,,}" = "true" ]; then
     if setfacl -Rm "u:${PHP_FPM_USER}:rwX" "${STACKS_DIR}" 2>/dev/null && \
        setfacl -Rm "d:u:${PHP_FPM_USER}:rwX" "${STACKS_DIR}" 2>/dev/null; then
-        echo "[DockerManger] Stack ACL prepared for ${PHP_FPM_USER} without changing host ownership."
+        echo "[DockerManger] Stack ACL prepared for ${PHP_FPM_USER} without chan                                                                                                                                    ging host ownership."
     else
-        echo "[DockerManger] WARNING: Unable to apply stack ACLs to ${STACKS_DIR}."
-        echo "[DockerManger] WARNING: Compose viewing/lifecycle may work, but create/edit operations may be read-only."
+        echo "[DockerManger] WARNING: Unable to apply stack ACLs to ${STACKS_DIR                                                                                                                                    }."
+        echo "[DockerManger] WARNING: Compose viewing/lifecycle may work, but cr                                                                                                                                    eate/edit operations may be read-only."
     fi
 else
     echo "[DockerManger] Automatic stack permission management disabled."
@@ -397,14 +321,14 @@ fi
 if runuser -u "${PHP_FPM_USER}" -- test -r "${STACKS_DIR}"; then
     echo "[DockerManger] Stack directory readable by ${PHP_FPM_USER}."
 else
-    echo "[DockerManger] WARNING: Stack directory is not readable by ${PHP_FPM_USER}."
+    echo "[DockerManger] WARNING: Stack directory is not readable by ${PHP_FPM_U                                                                                                                                    SER}."
 fi
 
 if runuser -u "${PHP_FPM_USER}" -- test -w "${STACKS_DIR}"; then
     echo "[DockerManger] Stack directory writable by ${PHP_FPM_USER}."
 else
-    echo "[DockerManger] WARNING: Stack directory is not writable by ${PHP_FPM_USER}."
-    echo "[DockerManger] WARNING: Host path mounted at ${STACKS_DIR} must permit UID $(id -u "${PHP_FPM_USER}") to write."
+    echo "[DockerManger] WARNING: Stack directory is not writable by ${PHP_FPM_U                                                                                                                                    SER}."
+    echo "[DockerManger] WARNING: Host path mounted at ${STACKS_DIR} must permit                                                                                                                                     UID $(id -u "${PHP_FPM_USER}") to write."
 fi
 
 
@@ -417,3 +341,4 @@ echo "[DockerManger] Initialization complete."
 echo "============================================================"
 
 exec "$@"
+root@rpi4:~/DockerManger/container/scripts#
