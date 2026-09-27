@@ -125,8 +125,50 @@ else
     echo "[DockerManger] WARNING: Persistent SSH storage at ${SSH_DIR} is not linked."
 fi
 
+# Older repository revisions used placeholder directories named `config` and
+# `known_hosts`. OpenSSH requires both paths to be regular files. Repair only
+# those harmless placeholder directories; never remove real SSH material.
+for ssh_file in config known_hosts; do
+    ssh_path="${SSH_DIR}/${ssh_file}"
+    if [ -d "${ssh_path}" ]; then
+        if find "${ssh_path}" -mindepth 1 -maxdepth 1 ! -name '.gitkeep' -print -quit 2>/dev/null | grep -q .; then
+            echo "[DockerManger] WARNING: ${ssh_path} is a directory containing data; leaving it untouched."
+        else
+            rm -f "${ssh_path}/.gitkeep" 2>/dev/null || true
+            rmdir "${ssh_path}" 2>/dev/null || true
+            echo "[DockerManger] Repaired SSH ${ssh_file} placeholder directory."
+        fi
+    fi
+done
+
 # OpenSSH rejects private keys/directories with overly permissive permissions.
+# The container runs the outbound SSH client as root, so keep this state owned
+# by root while allowing OpenSSH to update known_hosts normally.
+chown root:root "${SSH_DIR}"
 chmod 700 "${SSH_DIR}"
+
+touch "${SSH_DIR}/known_hosts"
+chown root:root "${SSH_DIR}/known_hosts"
+chmod 600 "${SSH_DIR}/known_hosts"
+
+if [ -e "${SSH_DIR}/config" ]; then
+    if [ -f "${SSH_DIR}/config" ]; then
+        chown root:root "${SSH_DIR}/config"
+        chmod 600 "${SSH_DIR}/config"
+    else
+        echo "[DockerManger] WARNING: ${SSH_DIR}/config is not a regular file."
+    fi
+fi
+
+# Tighten standard private-key permissions when those files are present.
+for ssh_key in "${SSH_DIR}"/id_*; do
+    [ -f "${ssh_key}" ] || continue
+    case "$(basename "${ssh_key}")" in
+        *.pub) chmod 644 "${ssh_key}" ;;
+        *) chmod 600 "${ssh_key}" ;;
+    esac
+    chown root:root "${ssh_key}"
+done
 
 
 # ============================================================================

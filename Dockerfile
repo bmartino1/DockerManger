@@ -61,7 +61,10 @@ ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
     STACKS_DIR=/opt/stacks \
-    TZ=America/Chicago
+    TZ=America/Chicago \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -121,7 +124,11 @@ RUN apt-get update && \
         netcat-openbsd \
         lsof \
         rsync \
+        locales \
         tzdata && \
+    sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
 
 

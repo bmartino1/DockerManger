@@ -53,7 +53,15 @@ function terminalCommand(url) {
     const sshPort = process.env.DOCKERMANGER_HOST_SSH_PORT || '22';
     const sshUser = process.env.DOCKERMANGER_HOST_SSH_USER || 'root';
     const sshKey = (process.env.DOCKERMANGER_HOST_SSH_KEY || '').trim();
-    const args = ['-tt', '-p', sshPort];
+    const args = [
+      '-tt',
+      '-p', sshPort,
+      // Keep DockerManger's UTF-8 locale local to the container. Some managed
+      // hosts do not generate en_US.UTF-8 and would otherwise print setlocale
+      // warnings when the system ssh_config forwards LANG/LC_* automatically.
+      '-o', 'SendEnv=-LANG',
+      '-o', 'SendEnv=-LC_*',
+    ];
     if (sshKey) args.push('-i', sshKey);
     args.push(`${sshUser}@${sshHost}`);
     return { file: 'ssh', args, label: `Host: ${sshUser}@${sshHost}` };

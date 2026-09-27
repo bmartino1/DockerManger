@@ -83,7 +83,7 @@ if ($container !== null) {
             <div class="notice notice-warning"><strong>SSH-backed host session</strong><span>Connecting as <?= $escape($hostSshUser) ?>@<?= $escape($hostSshHost) ?>:<?= $escape($hostSshPort) ?>. Commands run with that host account's privileges.</span></div>
         <?php endif; ?>
 
-        <?php if ($container === null): ?>
+        <?php if ($container === null && $target === 'host'): ?>
             <section class="panel host-console-summary">
                 <div class="panel-heading"><div><span class="eyebrow">Host SSH</span><h2>Host Console Configuration</h2></div><span class="validity <?= $hostEnabled ? 'good' : 'bad' ?>"><?= $hostEnabled ? 'Enabled' : 'Disabled' ?></span></div>
                 <div class="info-grid">
@@ -92,9 +92,6 @@ if ($container !== null) {
                     <div><span>Port</span><strong><?= $escape($hostSshPort) ?></strong></div>
                     <div><span>Identity</span><strong><?= $hostSshKey !== '' ? $escape($hostSshKey) : 'Default SSH key / interactive password' ?></strong></div>
                 </div>
-                <?php if (!$hostEnabled): ?>
-                    <div class="notice notice-warning embedded-notice"><strong>Host SSH is disabled in this running container.</strong><span>Set <code>DOCKERMANGER_HOST_SHELL_ENABLED=true</code> in <code>dockerenvironment.env</code>, then recreate DockerManger with <code>docker compose up -d</code>. A clean-clone rebuild restores the repository default unless you edit the deployment env again.</span></div>
-                <?php endif; ?>
             </section>
         <?php endif; ?>
 
