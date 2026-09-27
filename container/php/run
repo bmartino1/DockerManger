@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# ============================================================================
+# DockerManger - PHP-FPM runit Service
+# ============================================================================
+#
+# This is the runit service launcher for PHP-FPM inside the DockerManger
+# container.
+#
+# Source in repository:
+#
+#   container/php/run
+#
+# Installed by the Dockerfile as:
+#
+#   /etc/service/php-fpm/run
+#
+# Phusion Baseimage's runit supervisor executes this file to start and
+# supervise PHP-FPM.
+#
+# PHP-FPM must remain in the foreground. runit is responsible for supervising
+# the process and restarting it if it exits unexpectedly.
+#
+# ============================================================================
+
+set -e
+
+# Ensure PHP-FPM's runtime directory exists.
+#
+# The DockerManger entrypoint also creates this directory, but keeping this
+# check here makes the PHP-FPM service launcher safe if the service is
+# restarted independently.
+mkdir -p /run/php
+
+exec /usr/sbin/php-fpm8.3 -F
