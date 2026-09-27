@@ -105,6 +105,7 @@ RUN apt-get update && \
         php-zip \
         php-sqlite3 \
         openssh-client \
+        openssl \
         nodejs \
         npm \
         certbot \
@@ -274,13 +275,13 @@ COPY app/ /var/www/dockermanger/
 #
 # ============================================================================
 
-COPY scripts/entrypoint.sh \
+COPY container/scripts/entrypoint.sh \
     /usr/local/bin/dockermanger-entrypoint
 
-COPY scripts/healthcheck.sh \
+COPY container/scripts/healthcheck.sh \
     /usr/local/bin/dockermanger-healthcheck
 
-COPY scripts/diagnostics.sh \
+COPY container/scripts/diagnostics.sh \
     /usr/local/bin/dockermanger-diagnostics
 
 

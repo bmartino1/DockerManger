@@ -44,6 +44,7 @@ SSH_DIR="${DATA_DIR}/ssh"
 
 TLS_CERT="${CERT_DIR}/dockermanger.crt"
 TLS_KEY="${CERT_DIR}/dockermanger.key"
+NGINX_CONFIG="/etc/nginx/conf.d/dockermanger.conf"
 
 
 # ============================================================================
@@ -167,7 +168,8 @@ if [ "${HTTPS_ENABLED}" = "true" ]; then
             -days 3650 \
             -keyout "${TLS_KEY}" \
             -out "${TLS_CERT}" \
-            -subj "/CN=DockerManger"
+            -subj "/CN=dockermanger" \
+            -addext "subjectAltName=DNS:dockermanger,DNS:localhost,IP:127.0.0.1"
 
         chmod 600 "${TLS_KEY}"
         chmod 644 "${TLS_CERT}"
@@ -185,6 +187,33 @@ if [ "${HTTPS_ENABLED}" = "true" ]; then
 else
     echo "[DockerManger] HTTPS disabled."
 fi
+
+
+# ============================================================================
+# Nginx Runtime Configuration
+# ============================================================================
+#
+# Nginx runs on container port 443, but Docker Compose may publish that port
+# on a different host port (5443 by default). The repository Nginx file keeps
+# a single placeholder for that external port. Replace it at container start.
+#
+# This modifies only the container copy under /etc/nginx. The repository file
+# mounted/build context is never changed.
+# ============================================================================
+
+if ! [[ "${HTTPS_PORT}" =~ ^[0-9]+$ ]] || [ "${HTTPS_PORT}" -lt 1 ] || [ "${HTTPS_PORT}" -gt 65535 ]; then
+    echo "[DockerManger] ERROR: Invalid DOCKERMANGER_HTTPS_PORT: ${HTTPS_PORT}"
+    exit 1
+fi
+
+if grep -q '__DOCKERMANGER_HTTPS_PORT__' "${NGINX_CONFIG}"; then
+    sed -i "s/__DOCKERMANGER_HTTPS_PORT__/${HTTPS_PORT}/g" "${NGINX_CONFIG}"
+    echo "[DockerManger] Nginx HTTPS redirect port set to ${HTTPS_PORT}."
+fi
+
+# Validate Nginx before runit starts it. This catches missing certificates,
+# malformed configuration, and other startup problems with a useful error.
+nginx -t
 
 
 # ============================================================================

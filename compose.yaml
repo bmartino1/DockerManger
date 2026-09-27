@@ -106,12 +106,6 @@ services:
       #
       - ./data:/data
 
-      # SSH CLIENT configuration and keys for the optional host console.
-      #
-      # DockerManger does NOT run an SSH server.
-      #
-      - ./ssh:/root/.ssh
-
       # Docker Compose stacks.
       #
       # /opt/stacks is DockerManger's neutral default inside the container.
