@@ -6,6 +6,11 @@ umask 022
 # Additive to the repository: copies app/runtime files to host paths and never
 # edits repository files. Safe to re-run after git pull or to repair a host.
 
+# git clone https://github.com/bmartino1/DockerManger.git
+# cd DockerManger
+# chmod +x host_installer.sh
+# ./host_installer.sh
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 APP_SRC="$SCRIPT_DIR/app"
 TERMINAL_SRC="$SCRIPT_DIR/container/terminal"
