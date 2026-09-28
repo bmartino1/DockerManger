@@ -227,8 +227,32 @@ install -m 0644 "$PHP_INI_SRC" "/etc/php/${PHP_VERSION}/cli/conf.d/99-dockermang
 printf '[www]\nclear_env = no\n' > "$PHP_FPM_OVERRIDE"
 if getent group docker >/dev/null; then usermod -aG docker www-data; fi
 if [[ "$MANAGE_STACK_PERMS" == true ]]; then
+  log "Granting www-data access to the Compose stacks directory"
+
+  # The web process must be able to traverse every parent of STACKS_DIR.
+  # Give www-data execute/traverse only on parents; do not chmod them and do
+  # not grant directory-listing/read permission.
+  parent="$(dirname -- "$STACKS_DIR")"
+  while [[ "$parent" != "/" && -n "$parent" ]]; do
+    setfacl -m u:www-data:--x "$parent"
+    parent="$(dirname -- "$parent")"
+  done
+
+  # Full access to the actual stack tree, inherited by new stack content.
   setfacl -Rm u:www-data:rwX "$STACKS_DIR"
   setfacl -Rm d:u:www-data:rwX "$STACKS_DIR"
+
+  run_as_www_data() {
+    if command -v runuser >/dev/null 2>&1; then
+      runuser -u www-data -- "$@"
+    else
+      su -s /bin/sh www-data -c "$(printf '%q ' "$@")"
+    fi
+  }
+
+  run_as_www_data test -x "$STACKS_DIR" || die "www-data cannot traverse STACKS_DIR: $STACKS_DIR"
+  run_as_www_data test -r "$STACKS_DIR" || die "www-data cannot read STACKS_DIR: $STACKS_DIR"
+  run_as_www_data test -w "$STACKS_DIR" || die "www-data cannot write STACKS_DIR: $STACKS_DIR"
 fi
 
 log "Preserving/creating TLS certificate"
@@ -389,6 +413,10 @@ if [[ "$INSTALL_DOCKER" == true || -x "$(command -v docker 2>/dev/null || true)"
 fi
 systemctl is-active --quiet "$PHP_FPM_SERVICE" || { warn "$PHP_FPM_SERVICE inactive."; FAIL=1; }
 systemctl is-active --quiet nginx || { warn "nginx inactive."; FAIL=1; }
+if [[ "$MANAGE_STACK_PERMS" == true ]]; then
+  run_as_www_data test -x "$STACKS_DIR" && run_as_www_data test -r "$STACKS_DIR" && run_as_www_data test -w "$STACKS_DIR" \
+    || { warn "Compose stacks directory is not fully accessible to www-data: $STACKS_DIR"; FAIL=1; }
+fi
 curl -fsS "http://127.0.0.1:$HTTP_PORT/health" >/dev/null || { warn "HTTP health check failed."; FAIL=1; }
 curl -kfsS "https://127.0.0.1:$HTTPS_PORT/health" >/dev/null || { warn "HTTPS health check failed."; FAIL=1; }
 
