@@ -19,6 +19,16 @@ DockerManger is intended for trusted home/lab environments where a simple Docker
 
 # WebUI Example
 
+<img width="1708" height="1138" alt="image" src="https://github.com/user-attachments/assets/fbfdc959-f79b-4fa9-a553-e7789c17c0cc" />
+
+<img width="1715" height="1164" alt="image" src="https://github.com/user-attachments/assets/9e3bc15c-8d0b-4598-a75e-1affc120a579" />
+
+<img width="1690" height="1295" alt="image" src="https://github.com/user-attachments/assets/7606221c-a763-439d-93c1-082f6e015b45" />
+
+<img width="1018" height="1090" alt="image" src="https://github.com/user-attachments/assets/97384762-8acd-476e-a68d-6f4617c327a4" />
+
+<img width="1716" height="1398" alt="image" src="https://github.com/user-attachments/assets/1174c8eb-006b-4ef3-82e3-ae993479d807" />
+
 
 ---
 
