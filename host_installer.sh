@@ -2,18 +2,40 @@
 set -Eeuo pipefail
 umask 022
 
-# DockerManger native Debian/Proxmox installer.
-# Additive to the repository: copies app/runtime files to host paths and never
-# edits repository files. Safe to re-run after git pull or to repair a host.
+# DockerManger native Debian/Proxmox/Raspberry Pi OS installer.
+#
+# Additive to the repository:
+#   - Copies application/runtime files to native host paths.
+#   - Never edits repository application files.
+#   - Safe to re-run after git pull or to repair/update a host.
+#   - Preserves /data and the configured Compose stacks directory.
+#
+# Typical use:
+#
+#   git clone https://github.com/bmartino1/DockerManger.git
+#   cd DockerManger
+#   chmod +x host_installer.sh
+#   ./host_installer.sh
+#
+# First run:
+#   -> asks configuration questions
+#   -> saves answers to /etc/dockermanger/installer.env
+#
+# Later runs:
+#   -> loads saved answers as prompt defaults
+#   -> pressing Enter keeps the existing setting
+#
+# Fully unattended repair/update:
+#
+#   DOCKERMANGER_RECONFIGURE=0 ./host_installer.sh
 
-# git clone https://github.com/bmartino1/DockerManger.git
-# cd DockerManger
-# chmod +x host_installer.sh
-# ./host_installer.sh
-# -> asks questions
-# -> saves answers to /etc/dockermanger/installer.env
+
+###############################################################################
+# Paths
+###############################################################################
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
 APP_SRC="$SCRIPT_DIR/app"
 TERMINAL_SRC="$SCRIPT_DIR/container/terminal"
 PHP_INI_SRC="$SCRIPT_DIR/container/php/docker-manager.ini"
@@ -21,250 +43,874 @@ REPO_DATA_SRC="$SCRIPT_DIR/data"
 
 APP_DST="/var/www/dockermanger"
 TERMINAL_DST="/opt/dockermanger-terminal"
+
 CONFIG_DIR="/etc/dockermanger"
 INSTALLER_CONF="$CONFIG_DIR/installer.env"
 ENV_DST="$CONFIG_DIR/dockermanger.env"
+
 DATA_DIR="/data"
 DEFAULT_STACKS_DIR="/opt/stacks"
+
 ACME_DIR="/var/www/acme-challenge"
+
 NGINX_DST="/etc/nginx/sites-available/dockermanger.conf"
 SYSTEMD_DST="/etc/systemd/system/dockermanger-terminal.service"
+
 TMP_DIR="$(mktemp -d /tmp/dockermanger-host-installer.XXXXXX)"
 
-log(){ printf '\n\033[1;34m[DockerManger]\033[0m %s\n' "$*"; }
-warn(){ printf '\n\033[1;33m[WARNING]\033[0m %s\n' "$*" >&2; }
-die(){ printf '\n\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
-cleanup(){ rm -rf -- "$TMP_DIR"; }
+
+###############################################################################
+# Helpers
+###############################################################################
+
+log() {
+    printf '\n\033[1;34m[DockerManger]\033[0m %s\n' "$*"
+}
+
+warn() {
+    printf '\n\033[1;33m[WARNING]\033[0m %s\n' "$*" >&2
+}
+
+die() {
+    printf '\n\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2
+    exit 1
+}
+
+cleanup() {
+    rm -rf -- "$TMP_DIR"
+}
+
 trap cleanup EXIT
-trap 'printf "\n[ERROR] Installer failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
+
+trap '
+    printf "\n[ERROR] Installer failed at line %s: %s\n" \
+        "$LINENO" "$BASH_COMMAND" >&2
+' ERR
+
+
+###############################################################################
+# Initial validation
+###############################################################################
 
 [[ ${EUID:-$(id -u)} -eq 0 ]] || die "Run as root."
+
 [[ -f /etc/os-release ]] || die "Cannot identify OS."
+
 # shellcheck disable=SC1091
 . /etc/os-release
-[[ "${ID:-}" == "debian" || " ${ID_LIKE:-} " == *" debian "* ]] || die "Debian/Proxmox host required."
-[[ -f "$APP_SRC/public/index.php" ]] || die "Run host_installer.sh from the DockerManger repository root."
-[[ -f "$TERMINAL_SRC/server.js" && -f "$TERMINAL_SRC/package.json" ]] || die "Missing container/terminal source files."
-[[ -f "$PHP_INI_SRC" ]] || die "Missing container/php/docker-manager.ini."
 
-# Interactive configuration. First run asks for settings and saves them.
-# On later runs the saved values become the defaults, so pressing Enter reuses
-# the previous installation choices. Set DOCKERMANGER_RECONFIGURE=0 to accept
-# every saved/default value non-interactively.
+if [[ "${ID:-}" != "debian" && " ${ID_LIKE:-} " != *" debian "* ]]; then
+    die "Debian/Proxmox/Raspberry Pi OS Debian-family host required."
+fi
+
+[[ -f "$APP_SRC/public/index.php" ]] || \
+    die "Run host_installer.sh from the DockerManger repository root."
+
+[[ -f "$APP_SRC/public/console.php" ]] || \
+    die "Missing app/public/console.php."
+
+[[ -f "$TERMINAL_SRC/server.js" ]] || \
+    die "Missing container/terminal/server.js."
+
+[[ -f "$TERMINAL_SRC/package.json" ]] || \
+    die "Missing container/terminal/package.json."
+
+[[ -f "$PHP_INI_SRC" ]] || \
+    die "Missing container/php/docker-manager.ini."
+
+
+###############################################################################
+# Configuration defaults
+###############################################################################
+
 DEF_HTTP_PORT=80
 DEF_HTTPS_PORT=443
 DEF_STACKS_DIR="$DEFAULT_STACKS_DIR"
-DEF_TIMEZONE="$(cat /etc/timezone 2>/dev/null || printf '%s' 'America/Chicago')"
+
+DEF_TIMEZONE="$(
+    cat /etc/timezone 2>/dev/null ||
+    printf '%s' 'America/Chicago'
+)"
+
 DEF_INSTALL_DOCKER=true
 DEF_INSTALL_SSHD=true
 DEF_ENABLE_CONSOLE=false
 DEF_MANAGE_STACK_PERMS=true
 
+
+###############################################################################
+# Load saved installer configuration
+###############################################################################
+
 SAVED_CONFIG=false
+
 if [[ -f "$INSTALLER_CONF" ]]; then
-  # Generated by this installer using shell-safe %q assignments.
-  # shellcheck disable=SC1090
-  source "$INSTALLER_CONF"
-  SAVED_CONFIG=true
+    # This file is generated by this installer using shell-safe %q assignments.
+    # shellcheck disable=SC1090
+    source "$INSTALLER_CONF"
+    SAVED_CONFIG=true
 fi
 
 HTTP_PORT="${SAVED_HTTP_PORT:-$DEF_HTTP_PORT}"
 HTTPS_PORT="${SAVED_HTTPS_PORT:-$DEF_HTTPS_PORT}"
 STACKS_DIR="${SAVED_STACKS_DIR:-$DEF_STACKS_DIR}"
 TIMEZONE="${SAVED_TIMEZONE:-$DEF_TIMEZONE}"
+
 INSTALL_DOCKER="${SAVED_INSTALL_DOCKER:-$DEF_INSTALL_DOCKER}"
 INSTALL_SSHD="${SAVED_INSTALL_SSHD:-$DEF_INSTALL_SSHD}"
 ENABLE_CONSOLE="${SAVED_ENABLE_CONSOLE:-$DEF_ENABLE_CONSOLE}"
 MANAGE_STACK_PERMS="${SAVED_MANAGE_STACK_PERMS:-$DEF_MANAGE_STACK_PERMS}"
 
+
+###############################################################################
+# Interactive configuration
+###############################################################################
+
 prompt_value() {
-  local var="$1" label="$2" current="$3" answer
-  read -r -p "$label [$current]: " answer
-  printf -v "$var" '%s' "${answer:-$current}"
+    local var="$1"
+    local label="$2"
+    local current="$3"
+    local answer
+
+    read -r -p "$label [$current]: " answer
+
+    printf -v "$var" '%s' "${answer:-$current}"
 }
 
 prompt_yes_no() {
-  local var="$1" label="$2" current="$3" answer suffix
-  [[ "$current" == true ]] && suffix='Y/n' || suffix='y/N'
-  while true; do
-    read -r -p "$label [$suffix]: " answer
-    case "${answer,,}" in
-      '') printf -v "$var" '%s' "$current"; return ;;
-      y|yes) printf -v "$var" '%s' true; return ;;
-      n|no) printf -v "$var" '%s' false; return ;;
-      *) echo "Please answer yes or no." ;;
-    esac
-  done
+    local var="$1"
+    local label="$2"
+    local current="$3"
+    local answer
+    local suffix
+
+    if [[ "$current" == true ]]; then
+        suffix='Y/n'
+    else
+        suffix='y/N'
+    fi
+
+    while true; do
+        read -r -p "$label [$suffix]: " answer
+
+        case "${answer,,}" in
+            '')
+                printf -v "$var" '%s' "$current"
+                return
+                ;;
+            y|yes)
+                printf -v "$var" '%s' true
+                return
+                ;;
+            n|no)
+                printf -v "$var" '%s' false
+                return
+                ;;
+            *)
+                echo "Please answer yes or no."
+                ;;
+        esac
+    done
 }
 
+
 if [[ "${DOCKERMANGER_RECONFIGURE:-1}" != 0 ]]; then
-  echo
-  echo "DockerManger native host configuration"
-  if [[ "$SAVED_CONFIG" == true ]]; then
-    echo "Saved settings found in $INSTALLER_CONF. Press Enter to keep each current value."
-  else
-    echo "First run: answer these once; choices will be saved in $INSTALLER_CONF."
-  fi
-  prompt_value HTTP_PORT "HTTP port" "$HTTP_PORT"
-  prompt_value HTTPS_PORT "HTTPS port" "$HTTPS_PORT"
-  prompt_value STACKS_DIR "Docker Compose stacks directory" "$STACKS_DIR"
-  prompt_value TIMEZONE "Timezone" "$TIMEZONE"
-  prompt_yes_no INSTALL_DOCKER "Install/repair Docker Engine + Compose v2" "$INSTALL_DOCKER"
-  prompt_yes_no INSTALL_SSHD "Install/enable OpenSSH server" "$INSTALL_SSHD"
-  warn "When enabled natively, the browser console's LOCAL target is a shell on THIS HOST and has powerful Docker/host access."
-  prompt_yes_no ENABLE_CONSOLE "Enable DockerManger browser PTY console" "$ENABLE_CONSOLE"
-  if [[ "$ENABLE_CONSOLE" == true ]]; then
-    local_confirm=false
-    prompt_yes_no local_confirm "Confirm native host browser-console access" true
-    [[ "$local_confirm" == true ]] || ENABLE_CONSOLE=false
-  fi
-  prompt_yes_no MANAGE_STACK_PERMS "Grant www-data read/write ACLs on the stacks directory" "$MANAGE_STACK_PERMS"
+
+    echo
+    echo "DockerManger native host configuration"
+
+    if [[ "$SAVED_CONFIG" == true ]]; then
+        echo
+        echo "Saved settings found in:"
+        echo "  $INSTALLER_CONF"
+        echo
+        echo "Press Enter to keep each current value."
+    else
+        echo
+        echo "First run: answer these once."
+        echo "Choices will be saved in:"
+        echo "  $INSTALLER_CONF"
+    fi
+
+    echo
+
+    prompt_value \
+        HTTP_PORT \
+        "HTTP port" \
+        "$HTTP_PORT"
+
+    prompt_value \
+        HTTPS_PORT \
+        "HTTPS port" \
+        "$HTTPS_PORT"
+
+    prompt_value \
+        STACKS_DIR \
+        "Docker Compose stacks directory" \
+        "$STACKS_DIR"
+
+    prompt_value \
+        TIMEZONE \
+        "Timezone" \
+        "$TIMEZONE"
+
+    prompt_yes_no \
+        INSTALL_DOCKER \
+        "Install/repair Docker Engine + Compose v2" \
+        "$INSTALL_DOCKER"
+
+    prompt_yes_no \
+        INSTALL_SSHD \
+        "Install/enable OpenSSH server" \
+        "$INSTALL_SSHD"
+
+    warn \
+        "When enabled natively, the browser console's LOCAL target is a shell on THIS HOST and has powerful Docker/host access."
+
+    prompt_yes_no \
+        ENABLE_CONSOLE \
+        "Enable DockerManger browser PTY console" \
+        "$ENABLE_CONSOLE"
+
+    if [[ "$ENABLE_CONSOLE" == true ]]; then
+
+        local_confirm=false
+
+        prompt_yes_no \
+            local_confirm \
+            "Confirm native host browser-console access" \
+            true
+
+        if [[ "$local_confirm" != true ]]; then
+            ENABLE_CONSOLE=false
+        fi
+    fi
+
+    prompt_yes_no \
+        MANAGE_STACK_PERMS \
+        "Grant www-data read/write ACLs on the stacks directory" \
+        "$MANAGE_STACK_PERMS"
 fi
-valid_port(){ [[ "$1" =~ ^[0-9]+$ ]] && ((10#$1 >= 1 && 10#$1 <= 65535)); }
-valid_bool(){ [[ "$1" == true || "$1" == false ]]; }
-valid_port "$HTTP_PORT" || die "Invalid HTTP_PORT=$HTTP_PORT"
-valid_port "$HTTPS_PORT" || die "Invalid HTTPS_PORT=$HTTPS_PORT"
-[[ "$HTTP_PORT" != "$HTTPS_PORT" ]] || die "HTTP_PORT and HTTPS_PORT must differ."
-[[ "$STACKS_DIR" == /* ]] || die "STACKS_DIR must be absolute."
-valid_bool "$INSTALL_DOCKER" || die "INSTALL_DOCKER must be true/false."
-valid_bool "$INSTALL_SSHD" || die "INSTALL_SSHD must be true/false."
-valid_bool "$ENABLE_CONSOLE" || die "ENABLE_CONSOLE must be true/false."
-valid_bool "$MANAGE_STACK_PERMS" || die "MANAGE_STACK_PERMS must be true/false."
+
+
+###############################################################################
+# Validate configuration
+###############################################################################
+
+valid_port() {
+    [[ "$1" =~ ^[0-9]+$ ]] &&
+        ((10#$1 >= 1 && 10#$1 <= 65535))
+}
+
+valid_bool() {
+    [[ "$1" == true || "$1" == false ]]
+}
+
+valid_port "$HTTP_PORT" || \
+    die "Invalid HTTP_PORT=$HTTP_PORT"
+
+valid_port "$HTTPS_PORT" || \
+    die "Invalid HTTPS_PORT=$HTTPS_PORT"
+
+[[ "$HTTP_PORT" != "$HTTPS_PORT" ]] || \
+    die "HTTP_PORT and HTTPS_PORT must differ."
+
+[[ "$STACKS_DIR" == /* ]] || \
+    die "STACKS_DIR must be absolute."
+
+valid_bool "$INSTALL_DOCKER" || \
+    die "INSTALL_DOCKER must be true/false."
+
+valid_bool "$INSTALL_SSHD" || \
+    die "INSTALL_SSHD must be true/false."
+
+valid_bool "$ENABLE_CONSOLE" || \
+    die "ENABLE_CONSOLE must be true/false."
+
+valid_bool "$MANAGE_STACK_PERMS" || \
+    die "MANAGE_STACK_PERMS must be true/false."
+
+
+###############################################################################
+# Save installer configuration
+###############################################################################
 
 install -d -m 0755 "$CONFIG_DIR"
+
 {
-  printf 'SAVED_HTTP_PORT=%q\n' "$HTTP_PORT"
-  printf 'SAVED_HTTPS_PORT=%q\n' "$HTTPS_PORT"
-  printf 'SAVED_STACKS_DIR=%q\n' "$STACKS_DIR"
-  printf 'SAVED_TIMEZONE=%q\n' "$TIMEZONE"
-  printf 'SAVED_INSTALL_DOCKER=%q\n' "$INSTALL_DOCKER"
-  printf 'SAVED_INSTALL_SSHD=%q\n' "$INSTALL_SSHD"
-  printf 'SAVED_ENABLE_CONSOLE=%q\n' "$ENABLE_CONSOLE"
-  printf 'SAVED_MANAGE_STACK_PERMS=%q\n' "$MANAGE_STACK_PERMS"
-} > "$TMP_DIR/installer.conf"
-install -m 0644 "$TMP_DIR/installer.conf" "$INSTALLER_CONF"
+    printf 'SAVED_HTTP_PORT=%q\n' \
+        "$HTTP_PORT"
+
+    printf 'SAVED_HTTPS_PORT=%q\n' \
+        "$HTTPS_PORT"
+
+    printf 'SAVED_STACKS_DIR=%q\n' \
+        "$STACKS_DIR"
+
+    printf 'SAVED_TIMEZONE=%q\n' \
+        "$TIMEZONE"
+
+    printf 'SAVED_INSTALL_DOCKER=%q\n' \
+        "$INSTALL_DOCKER"
+
+    printf 'SAVED_INSTALL_SSHD=%q\n' \
+        "$INSTALL_SSHD"
+
+    printf 'SAVED_ENABLE_CONSOLE=%q\n' \
+        "$ENABLE_CONSOLE"
+
+    printf 'SAVED_MANAGE_STACK_PERMS=%q\n' \
+        "$MANAGE_STACK_PERMS"
+
+} > "$TMP_DIR/installer.env"
+
+install \
+    -m 0644 \
+    "$TMP_DIR/installer.env" \
+    "$INSTALLER_CONF"
+
+
+###############################################################################
+# Installation summary
+###############################################################################
 
 cat <<EOF
+
 DockerManger native host install/repair
+
   OS:          ${PRETTY_NAME:-${ID:-unknown}}
+  Architecture: $(dpkg --print-architecture)
   HTTP/HTTPS:  $HTTP_PORT / $HTTPS_PORT
   Stacks:      $STACKS_DIR
   Persistent:  $DATA_DIR (preserved)
   Settings:    $INSTALLER_CONF
   Console:     $ENABLE_CONSOLE
+
 EOF
-[[ "$ENABLE_CONSOLE" == true ]] && warn "Native browser console is enabled; its local target is a shell on this host."
+
+if [[ "$ENABLE_CONSOLE" == true ]]; then
+    warn \
+        "Native browser console is enabled; its local target is a shell on this host."
+fi
+
+
+###############################################################################
+# Base packages and side utilities
+###############################################################################
 
 log "Installing host packages and side utilities"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y --no-install-recommends \
-  nginx php-fpm php-cli openssh-client openssl nodejs npm build-essential python3 \
-  acl bash curl wget ca-certificates git jq nano mc less vim-tiny procps psmisc \
-  iproute2 iputils-ping net-tools dnsutils traceroute netcat-openbsd socat \
-  lsof rsync locales tzdata gnupg unzip zip tree file htop
 
-# Explicitly verify the requested side utilities.
-for cmd in mc ping nc nslookup dig traceroute curl wget jq rsync lsof ss ip; do
-  command -v "$cmd" >/dev/null || die "Required utility '$cmd' is still missing after package installation."
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+
+apt-get install -y --no-install-recommends \
+    nginx \
+    php-fpm \
+    php-cli \
+    openssh-client \
+    openssl \
+    nodejs \
+    npm \
+    build-essential \
+    python3 \
+    acl \
+    bash \
+    curl \
+    wget \
+    ca-certificates \
+    git \
+    jq \
+    nano \
+    mc \
+    less \
+    vim-tiny \
+    procps \
+    psmisc \
+    iproute2 \
+    iputils-ping \
+    net-tools \
+    dnsutils \
+    traceroute \
+    netcat-openbsd \
+    socat \
+    lsof \
+    rsync \
+    locales \
+    tzdata \
+    gnupg \
+    unzip \
+    zip \
+    tree \
+    file \
+    htop
+
+
+###############################################################################
+# Verify utilities
+###############################################################################
+
+log "Verifying host utilities"
+
+for cmd in \
+    python3 \
+    mc \
+    ping \
+    nc \
+    nslookup \
+    dig \
+    traceroute \
+    curl \
+    wget \
+    jq \
+    rsync \
+    lsof \
+    ss \
+    ip
+do
+    command -v "$cmd" >/dev/null || \
+        die "Required utility '$cmd' is missing after package installation."
 done
 
+
+###############################################################################
+# Locale
+###############################################################################
+
 if grep -Eq '^# *en_US.UTF-8 UTF-8' /etc/locale.gen; then
-  sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+    sed -i \
+        's/^# *\(en_US.UTF-8 UTF-8\)/\1/' \
+        /etc/locale.gen
 fi
+
 locale-gen en_US.UTF-8 >/dev/null
-update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+update-locale \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+
+###############################################################################
+# Optional SSH server
+###############################################################################
 
 if [[ "$INSTALL_SSHD" == true ]]; then
-  log "Installing/enabling OpenSSH server"
-  apt-get install -y --no-install-recommends openssh-server
-  systemctl enable --now ssh
+
+    log "Installing/enabling OpenSSH server"
+
+    apt-get install -y --no-install-recommends \
+        openssh-server
+
+    systemctl enable --now ssh
 fi
+
+
+###############################################################################
+# Docker Engine + Compose
+###############################################################################
 
 if [[ "$INSTALL_DOCKER" == true ]]; then
-  log "Installing/repairing Docker Engine + Compose v2"
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/debian/gpg -o "$TMP_DIR/docker.asc"
-  install -m 0644 "$TMP_DIR/docker.asc" /etc/apt/keyrings/docker.asc
-  DOCKER_CODENAME="${VERSION_CODENAME:-}"
-  [[ -n "$DOCKER_CODENAME" ]] || die "VERSION_CODENAME missing from /etc/os-release."
-  printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian %s stable\n' \
-    "$(dpkg --print-architecture)" "$DOCKER_CODENAME" > /etc/apt/sources.list.d/docker.list
-  apt-get update
-  apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  systemctl enable --now docker
+
+    log "Installing/repairing Docker Engine + Compose v2"
+
+    install \
+        -m 0755 \
+        -d /etc/apt/keyrings
+
+    curl \
+        -fsSL \
+        https://download.docker.com/linux/debian/gpg \
+        -o "$TMP_DIR/docker.asc"
+
+    install \
+        -m 0644 \
+        "$TMP_DIR/docker.asc" \
+        /etc/apt/keyrings/docker.asc
+
+    DOCKER_CODENAME="${VERSION_CODENAME:-}"
+
+    [[ -n "$DOCKER_CODENAME" ]] || \
+        die "VERSION_CODENAME missing from /etc/os-release."
+
+    printf \
+        'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian %s stable\n' \
+        "$(dpkg --print-architecture)" \
+        "$DOCKER_CODENAME" \
+        > /etc/apt/sources.list.d/docker.list
+
+    apt-get update
+
+    apt-get install -y --no-install-recommends \
+        docker-ce \
+        docker-ce-cli \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-compose-plugin
+
+    systemctl enable --now docker
 fi
 
-PHP_VERSION="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null)"
+
+###############################################################################
+# PHP detection
+###############################################################################
+
+PHP_VERSION="$(
+    php -r \
+        'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' \
+        2>/dev/null
+)"
+
+[[ -n "$PHP_VERSION" ]] || \
+    die "Unable to detect installed PHP version."
+
 PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
 PHP_FPM_SOCK="/run/php/php${PHP_VERSION}-fpm.sock"
+
 PHP_FPM_POOL="/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf"
+
 PHP_FPM_OVERRIDE="/etc/php/${PHP_VERSION}/fpm/pool.d/zz-dockermanger.conf"
+
 PHP_FPM_DROPIN="/etc/systemd/system/${PHP_FPM_SERVICE}.service.d"
-[[ -f "$PHP_FPM_POOL" ]] || die "PHP-FPM pool missing: $PHP_FPM_POOL"
+
+[[ -f "$PHP_FPM_POOL" ]] || \
+    die "PHP-FPM pool missing: $PHP_FPM_POOL"
+
+
+###############################################################################
+# Application deployment
+###############################################################################
 
 log "Refreshing application copy; preserving runtime/stack data"
-install -d -m 0755 "$APP_DST" "$TERMINAL_DST" "$DATA_DIR/certs" "$DATA_DIR/ssh" "$DATA_DIR/compose_stacks" "$STACKS_DIR" "$ACME_DIR/.well-known/acme-challenge"
-# /var/www/dockermanger is a deployed copy and is refreshed from Git on rerun.
-rsync -a --delete --exclude='.git' "$APP_SRC/" "$APP_DST/"
-chown -R www-data:www-data "$APP_DST"
-# Never delete or overwrite existing runtime data. Only seed files that are absent.
-if [[ -d "$REPO_DATA_SRC" ]]; then rsync -a --ignore-existing "$REPO_DATA_SRC/" "$DATA_DIR/"; fi
-chmod 700 "$DATA_DIR/ssh"
+
+install -d -m 0755 \
+    "$APP_DST" \
+    "$TERMINAL_DST" \
+    "$DATA_DIR/certs" \
+    "$DATA_DIR/ssh" \
+    "$DATA_DIR/compose_stacks" \
+    "$STACKS_DIR" \
+    "$ACME_DIR/.well-known/acme-challenge"
+
+# /var/www/dockermanger is the deployed application copy.
+# It is intentionally refreshed from the Git checkout on every installer run.
+#
+# Runtime data and Compose stacks are NOT stored here and are not deleted.
+
+rsync \
+    -a \
+    --delete \
+    --exclude='.git' \
+    "$APP_SRC/" \
+    "$APP_DST/"
+
+chown -R \
+    www-data:www-data \
+    "$APP_DST"
+
+
+###############################################################################
+# Native-host console UI adjustment
+###############################################################################
+
+# DockerManger's "local" console is already the actual host shell when installed
+# natively.
+#
+# The separate Host Console (SSH) selector exists for the Docker/container
+# deployment where DockerManger itself is isolated from the Docker host.
+#
+# On a native installation that second selector is redundant.
+#
+# IMPORTANT:
+#   Only the DEPLOYED copy under /var/www/dockermanger is modified.
+#
+#   The Git repository:
+#
+#       $SCRIPT_DIR/app/public/console.php
+#
+#   remains untouched.
+#
+# Therefore normal Docker/container builds retain the Host Console feature.
+
+log "Applying native-host console UI adjustment"
+
+NATIVE_CONSOLE_PHP="$APP_DST/public/console.php"
+
+[[ -f "$NATIVE_CONSOLE_PHP" ]] || \
+    die "Deployed console.php missing: $NATIVE_CONSOLE_PHP"
+
+python3 - "$NATIVE_CONSOLE_PHP" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+
+text = path.read_text()
+
+old = '''                    <?php if ($hostEnabled): ?>
+                        <a class="button <?= $target === 'host' ? '' : 'button-secondary' ?>" href="/console.php?target=host">Host Console (SSH)</a>
+                    <?php else: ?>
+                        <span class="button button-secondary disabled-button" title="Enable DOCKERMANGER_HOST_SHELL_ENABLED to use the host SSH console.">Host Console disabled</span>
+                    <?php endif; ?>'''
+
+new = '''                    <?php /* Native host install:
+                    The local DockerManger console already runs on this host.
+                    The container-oriented Host Console (SSH) selector is intentionally hidden.
+                    */ ?>'''
+
+if old not in text:
+    raise SystemExit(
+        "ERROR: Expected Host Console UI block was not found in deployed "
+        "console.php; refusing to modify an unknown version."
+    )
+
+path.write_text(
+    text.replace(old, new, 1)
+)
+PY
+
+# Verify that the native deployment no longer exposes the redundant selector.
+
+if grep -Fq \
+    'Host Console disabled' \
+    "$NATIVE_CONSOLE_PHP"
+then
+    die \
+        "Native console UI patch failed: Host Console disabled control is still present."
+fi
+
+# The source repository must remain unchanged.
+
+grep -Fq \
+    'Host Console disabled' \
+    "$APP_SRC/public/console.php" || \
+    die \
+        "Repository console.php does not contain the expected Docker Host Console UI."
+
+
+###############################################################################
+# Seed persistent runtime data
+###############################################################################
+
+# Never delete or overwrite existing runtime data.
+#
+# Files from repository data/ are copied only when the destination file does
+# not already exist.
+
+if [[ -d "$REPO_DATA_SRC" ]]; then
+
+    rsync \
+        -a \
+        --ignore-existing \
+        "$REPO_DATA_SRC/" \
+        "$DATA_DIR/"
+fi
+
+chmod 700 \
+    "$DATA_DIR/ssh"
+
+
+###############################################################################
+# Terminal helper
+###############################################################################
 
 log "Refreshing terminal helper"
-install -m 0644 "$TERMINAL_SRC/package.json" "$TERMINAL_DST/package.json"
-install -m 0644 "$TERMINAL_SRC/server.js" "$TERMINAL_DST/server.js"
-install -m 0644 "$TERMINAL_SRC/composerize.js" "$TERMINAL_DST/composerize.js"
-(cd "$TERMINAL_DST" && npm install --omit=dev --no-audit --no-fund)
-install -d -m 0755 "$APP_DST/public/vendor/xterm"
-install -m 0644 "$TERMINAL_DST/node_modules/@xterm/xterm/lib/xterm.js" "$APP_DST/public/vendor/xterm/xterm.js"
-install -m 0644 "$TERMINAL_DST/node_modules/@xterm/xterm/css/xterm.css" "$APP_DST/public/vendor/xterm/xterm.css"
+
+install \
+    -m 0644 \
+    "$TERMINAL_SRC/package.json" \
+    "$TERMINAL_DST/package.json"
+
+install \
+    -m 0644 \
+    "$TERMINAL_SRC/server.js" \
+    "$TERMINAL_DST/server.js"
+
+install \
+    -m 0644 \
+    "$TERMINAL_SRC/composerize.js" \
+    "$TERMINAL_DST/composerize.js"
+
+(
+    cd "$TERMINAL_DST"
+
+    npm install \
+        --omit=dev \
+        --no-audit \
+        --no-fund
+)
+
+install \
+    -d \
+    -m 0755 \
+    "$APP_DST/public/vendor/xterm"
+
+install \
+    -m 0644 \
+    "$TERMINAL_DST/node_modules/@xterm/xterm/lib/xterm.js" \
+    "$APP_DST/public/vendor/xterm/xterm.js"
+
+install \
+    -m 0644 \
+    "$TERMINAL_DST/node_modules/@xterm/xterm/css/xterm.css" \
+    "$APP_DST/public/vendor/xterm/xterm.css"
+
+
+###############################################################################
+# PHP configuration
+###############################################################################
 
 log "Configuring PHP $PHP_VERSION"
-install -m 0644 "$PHP_INI_SRC" "/etc/php/${PHP_VERSION}/fpm/conf.d/99-dockermanger.ini"
-install -m 0644 "$PHP_INI_SRC" "/etc/php/${PHP_VERSION}/cli/conf.d/99-dockermanger.ini"
-printf '[www]\nclear_env = no\n' > "$PHP_FPM_OVERRIDE"
-if getent group docker >/dev/null; then usermod -aG docker www-data; fi
-if [[ "$MANAGE_STACK_PERMS" == true ]]; then
-  log "Granting www-data access to the Compose stacks directory"
 
-  # The web process must be able to traverse every parent of STACKS_DIR.
-  # Give www-data execute/traverse only on parents; do not chmod them and do
-  # not grant directory-listing/read permission.
-  parent="$(dirname -- "$STACKS_DIR")"
-  while [[ "$parent" != "/" && -n "$parent" ]]; do
-    setfacl -m u:www-data:--x "$parent"
-    parent="$(dirname -- "$parent")"
-  done
+install \
+    -m 0644 \
+    "$PHP_INI_SRC" \
+    "/etc/php/${PHP_VERSION}/fpm/conf.d/99-dockermanger.ini"
 
-  # Full access to the actual stack tree, inherited by new stack content.
-  setfacl -Rm u:www-data:rwX "$STACKS_DIR"
-  setfacl -Rm d:u:www-data:rwX "$STACKS_DIR"
+install \
+    -m 0644 \
+    "$PHP_INI_SRC" \
+    "/etc/php/${PHP_VERSION}/cli/conf.d/99-dockermanger.ini"
 
-  run_as_www_data() {
-    if command -v runuser >/dev/null 2>&1; then
-      runuser -u www-data -- "$@"
-    else
-      su -s /bin/sh www-data -c "$(printf '%q ' "$@")"
-    fi
-  }
+printf \
+    '[www]\nclear_env = no\n' \
+    > "$PHP_FPM_OVERRIDE"
 
-  run_as_www_data test -x "$STACKS_DIR" || die "www-data cannot traverse STACKS_DIR: $STACKS_DIR"
-  run_as_www_data test -r "$STACKS_DIR" || die "www-data cannot read STACKS_DIR: $STACKS_DIR"
-  run_as_www_data test -w "$STACKS_DIR" || die "www-data cannot write STACKS_DIR: $STACKS_DIR"
+
+###############################################################################
+# Docker socket permissions
+###############################################################################
+
+if getent group docker >/dev/null; then
+    usermod \
+        -aG docker \
+        www-data
 fi
+
+
+###############################################################################
+# Compose stack directory permissions
+###############################################################################
+
+run_as_www_data() {
+
+    if command -v runuser >/dev/null 2>&1; then
+
+        runuser \
+            -u www-data \
+            -- \
+            "$@"
+
+    else
+
+        su \
+            -s /bin/sh \
+            www-data \
+            -c "$(printf '%q ' "$@")"
+    fi
+}
+
+
+if [[ "$MANAGE_STACK_PERMS" == true ]]; then
+
+    log "Granting www-data access to the Compose stacks directory"
+
+    # www-data must be able to traverse EVERY parent directory leading to the
+    # configured STACKS_DIR.
+    #
+    # Example:
+    #
+    #   /root/DockerManger/data/compose_stacks
+    #
+    # Merely granting rwX on compose_stacks is not sufficient because /root
+    # normally blocks traversal.
+    #
+    # Grant execute/traverse ONLY to the parents.
+    #
+    # This does NOT make /root readable/listable and does NOT chmod it 755.
+
+    parent="$(dirname -- "$STACKS_DIR")"
+
+    while [[ "$parent" != "/" && -n "$parent" ]]; do
+
+        setfacl \
+            -m u:www-data:--x \
+            "$parent"
+
+        parent="$(dirname -- "$parent")"
+    done
+
+    # Grant full access to the actual Compose stack tree.
+
+    setfacl \
+        -Rm u:www-data:rwX \
+        "$STACKS_DIR"
+
+    # New stack content should inherit www-data access.
+
+    setfacl \
+        -Rm d:u:www-data:rwX \
+        "$STACKS_DIR"
+
+    # Acceptance checks.
+    #
+    # Do not report a successful installation if PHP/www-data cannot actually
+    # use the selected Compose directory.
+
+    run_as_www_data \
+        test -x "$STACKS_DIR" || \
+        die "www-data cannot traverse STACKS_DIR: $STACKS_DIR"
+
+    run_as_www_data \
+        test -r "$STACKS_DIR" || \
+        die "www-data cannot read STACKS_DIR: $STACKS_DIR"
+
+    run_as_www_data \
+        test -w "$STACKS_DIR" || \
+        die "www-data cannot write STACKS_DIR: $STACKS_DIR"
+fi
+
+
+###############################################################################
+# TLS certificate
+###############################################################################
 
 log "Preserving/creating TLS certificate"
+
 CRT="$DATA_DIR/certs/dockermanger.crt"
 KEY="$DATA_DIR/certs/dockermanger.key"
+
 if [[ -e "$CRT" || -e "$KEY" ]]; then
-  [[ -f "$CRT" && -f "$KEY" ]] || die "Incomplete TLS pair under $DATA_DIR/certs."
+
+    [[ -f "$CRT" && -f "$KEY" ]] || \
+        die "Incomplete TLS pair under $DATA_DIR/certs."
+
 else
-  HOST_CN="$(hostname -f 2>/dev/null || hostname)"
-  openssl req -x509 -nodes -newkey rsa:2048 -days 825 -keyout "$KEY" -out "$CRT" -subj "/CN=$HOST_CN" >/dev/null 2>&1
-  chmod 600 "$KEY"; chmod 644 "$CRT"
+
+    HOST_CN="$(
+        hostname -f 2>/dev/null ||
+        hostname
+    )"
+
+    openssl req \
+        -x509 \
+        -nodes \
+        -newkey rsa:2048 \
+        -days 825 \
+        -keyout "$KEY" \
+        -out "$CRT" \
+        -subj "/CN=$HOST_CN" \
+        >/dev/null 2>&1
+
+    chmod 600 "$KEY"
+    chmod 644 "$CRT"
 fi
+
+
+###############################################################################
+# DockerManger runtime environment
+###############################################################################
 
 cat > "$TMP_DIR/dockermanger.env" <<EOF
 TZ=$TIMEZONE
@@ -283,20 +929,41 @@ DOCKERMANGER_HOST_SSH_PORT=22
 DOCKERMANGER_HOST_SSH_USER=root
 DOCKERMANGER_HOST_SSH_KEY=
 EOF
-install -m 0640 "$TMP_DIR/dockermanger.env" "$ENV_DST"
 
-install -d -m 0755 "$PHP_FPM_DROPIN"
+install \
+    -m 0640 \
+    "$TMP_DIR/dockermanger.env" \
+    "$ENV_DST"
+
+
+###############################################################################
+# PHP-FPM environment
+###############################################################################
+
+install \
+    -d \
+    -m 0755 \
+    "$PHP_FPM_DROPIN"
+
 cat > "$PHP_FPM_DROPIN/10-dockermanger.conf" <<EOF
 [Service]
 EnvironmentFile=$ENV_DST
 EOF
 
+
+###############################################################################
+# nginx configuration
+###############################################################################
+
 log "Generating nginx configuration"
+
 cat > "$TMP_DIR/dockermanger.conf" <<EOF
 # Generated by DockerManger host_installer.sh.
+
 server {
     listen $HTTP_PORT;
     listen [::]:$HTTP_PORT;
+
     server_name _;
 
     location = /health {
@@ -312,18 +979,24 @@ server {
         try_files \$uri =404;
     }
 
-    location / { return 302 https://\$host:$HTTPS_PORT\$request_uri; }
+    location / {
+        return 302 https://\$host:$HTTPS_PORT\$request_uri;
+    }
 }
+
 
 server {
     listen $HTTPS_PORT ssl;
     listen [::]:$HTTPS_PORT ssl;
+
     server_name _;
+
     root $APP_DST/public;
     index index.php;
 
     ssl_certificate $CRT;
     ssl_certificate_key $KEY;
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:DockerMangerSSL:10m;
     ssl_session_timeout 1d;
@@ -342,34 +1015,79 @@ server {
 
     location = /terminal-ws {
         proxy_pass http://127.0.0.1:3000;
+
         proxy_http_version 1.1;
+
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host \$host;
+
         proxy_read_timeout 1d;
         proxy_send_timeout 1d;
     }
 
-    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
     location ~ \.php\$ {
         try_files \$uri =404;
+
         include fastcgi_params;
+
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_param SCRIPT_NAME \$fastcgi_script_name;
         fastcgi_param HTTPS on;
+
         fastcgi_pass unix:$PHP_FPM_SOCK;
     }
-    location ~ /\.(?!well-known) { deny all; }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
     client_max_body_size 10m;
 }
 EOF
 
-# Guard against the exact corruption seen during the first test: nginx directives
-# must exist in the generated nginx file, never as executable shell lines.
-grep -Fxq '    ssl_session_tickets off;' "$TMP_DIR/dockermanger.conf" || die "Generated nginx configuration self-check failed."
-install -m 0644 "$TMP_DIR/dockermanger.conf" "$NGINX_DST"
-if [[ -L /etc/nginx/sites-enabled/default ]] && { [[ "$HTTP_PORT" == 80 ]] || [[ "$HTTPS_PORT" == 443 ]]; }; then rm -f /etc/nginx/sites-enabled/default; fi
-ln -sfn "$NGINX_DST" /etc/nginx/sites-enabled/dockermanger.conf
+
+###############################################################################
+# nginx self-check
+###############################################################################
+
+# Guard against the exact corruption discovered during the initial Raspberry Pi
+# test. nginx directives belong inside the generated nginx configuration and
+# must never accidentally become executable Bash statements.
+
+grep -Fxq \
+    '    ssl_session_tickets off;' \
+    "$TMP_DIR/dockermanger.conf" || \
+    die "Generated nginx configuration self-check failed."
+
+install \
+    -m 0644 \
+    "$TMP_DIR/dockermanger.conf" \
+    "$NGINX_DST"
+
+if [[ -L /etc/nginx/sites-enabled/default ]] &&
+   {
+       [[ "$HTTP_PORT" == 80 ]] ||
+       [[ "$HTTPS_PORT" == 443 ]]
+   }
+then
+    rm -f \
+        /etc/nginx/sites-enabled/default
+fi
+
+ln \
+    -sfn \
+    "$NGINX_DST" \
+    /etc/nginx/sites-enabled/dockermanger.conf
+
+
+###############################################################################
+# Browser terminal systemd service
+###############################################################################
 
 cat > "$TMP_DIR/dockermanger-terminal.service" <<EOF
 [Unit]
@@ -379,63 +1097,253 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+
 EnvironmentFile=$ENV_DST
+
 WorkingDirectory=$TERMINAL_DST
+
 ExecStart=/usr/bin/node $TERMINAL_DST/server.js
+
 Restart=on-failure
 RestartSec=2
+
+# Native DockerManger's "local" PTY target is the actual host shell.
+# This service therefore intentionally runs as root.
 User=root
 Group=root
 
 [Install]
 WantedBy=multi-user.target
 EOF
-install -m 0644 "$TMP_DIR/dockermanger-terminal.service" "$SYSTEMD_DST"
+
+install \
+    -m 0644 \
+    "$TMP_DIR/dockermanger-terminal.service" \
+    "$SYSTEMD_DST"
+
+
+###############################################################################
+# Validate generated configuration BEFORE restarting services
+###############################################################################
 
 log "Validating generated configuration before service restart"
+
 php-fpm${PHP_VERSION} -t
+
 nginx -t
 
+
+###############################################################################
+# Start/restart services
+###############################################################################
+
 systemctl daemon-reload
-systemctl enable "$PHP_FPM_SERVICE" nginx >/dev/null
-systemctl restart "$PHP_FPM_SERVICE" nginx
+
+systemctl enable \
+    "$PHP_FPM_SERVICE" \
+    nginx \
+    >/dev/null
+
+systemctl restart \
+    "$PHP_FPM_SERVICE" \
+    nginx
+
 if [[ "$ENABLE_CONSOLE" == true ]]; then
-  systemctl enable --now dockermanger-terminal.service
+
+    systemctl enable --now \
+        dockermanger-terminal.service
+
 else
-  systemctl disable --now dockermanger-terminal.service 2>/dev/null || true
+
+    systemctl disable --now \
+        dockermanger-terminal.service \
+        2>/dev/null || true
 fi
+
+
+###############################################################################
+# Final acceptance checks
+###############################################################################
 
 log "Running final checks"
+
 FAIL=0
-if [[ "$INSTALL_DOCKER" == true || -x "$(command -v docker 2>/dev/null || true)" ]]; then
-  docker version >/dev/null 2>&1 || { warn "Docker Engine check failed."; FAIL=1; }
-  docker compose version >/dev/null 2>&1 || { warn "Docker Compose v2 check failed."; FAIL=1; }
+
+
+###############################################################################
+# Docker
+###############################################################################
+
+if [[ "$INSTALL_DOCKER" == true ]] ||
+   command -v docker >/dev/null 2>&1
+then
+
+    docker version >/dev/null 2>&1 || {
+        warn "Docker Engine check failed."
+        FAIL=1
+    }
+
+    docker compose version >/dev/null 2>&1 || {
+        warn "Docker Compose v2 check failed."
+        FAIL=1
+    }
 fi
-systemctl is-active --quiet "$PHP_FPM_SERVICE" || { warn "$PHP_FPM_SERVICE inactive."; FAIL=1; }
-systemctl is-active --quiet nginx || { warn "nginx inactive."; FAIL=1; }
+
+
+###############################################################################
+# Services
+###############################################################################
+
+systemctl is-active --quiet "$PHP_FPM_SERVICE" || {
+    warn "$PHP_FPM_SERVICE inactive."
+    FAIL=1
+}
+
+systemctl is-active --quiet nginx || {
+    warn "nginx inactive."
+    FAIL=1
+}
+
+if [[ "$INSTALL_DOCKER" == true ]]; then
+
+    systemctl is-active --quiet docker || {
+        warn "docker.service inactive."
+        FAIL=1
+    }
+fi
+
+if [[ "$ENABLE_CONSOLE" == true ]]; then
+
+    systemctl is-active --quiet dockermanger-terminal.service || {
+        warn "dockermanger-terminal.service inactive."
+        FAIL=1
+    }
+
+    ss -lnt \
+        | grep -Eq '127\.0\.0\.1:3000[[:space:]]' || {
+            warn "Browser terminal is not listening on 127.0.0.1:3000."
+            FAIL=1
+        }
+fi
+
+
+###############################################################################
+# Compose stack storage
+###############################################################################
+
 if [[ "$MANAGE_STACK_PERMS" == true ]]; then
-  run_as_www_data test -x "$STACKS_DIR" && run_as_www_data test -r "$STACKS_DIR" && run_as_www_data test -w "$STACKS_DIR" \
-    || { warn "Compose stacks directory is not fully accessible to www-data: $STACKS_DIR"; FAIL=1; }
+
+    if ! run_as_www_data test -x "$STACKS_DIR" ||
+       ! run_as_www_data test -r "$STACKS_DIR" ||
+       ! run_as_www_data test -w "$STACKS_DIR"
+    then
+        warn \
+            "Compose stacks directory is not fully accessible to www-data: $STACKS_DIR"
+
+        FAIL=1
+    fi
 fi
-curl -fsS "http://127.0.0.1:$HTTP_PORT/health" >/dev/null || { warn "HTTP health check failed."; FAIL=1; }
-curl -kfsS "https://127.0.0.1:$HTTPS_PORT/health" >/dev/null || { warn "HTTPS health check failed."; FAIL=1; }
 
-HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; HOST_IP="${HOST_IP:-HOST-IP}"
+
+###############################################################################
+# Native console UI
+###############################################################################
+
+if grep -Fq \
+    'Host Console disabled' \
+    "$NATIVE_CONSOLE_PHP"
+then
+    warn \
+        "Native Host Console selector is still present in deployed console.php."
+
+    FAIL=1
+fi
+
+
+###############################################################################
+# HTTP / HTTPS
+###############################################################################
+
+curl \
+    -fsS \
+    "http://127.0.0.1:$HTTP_PORT/health" \
+    >/dev/null || {
+        warn "HTTP health check failed."
+        FAIL=1
+    }
+
+curl \
+    -kfsS \
+    "https://127.0.0.1:$HTTPS_PORT/health" \
+    >/dev/null || {
+        warn "HTTPS health check failed."
+        FAIL=1
+    }
+
+
+###############################################################################
+# Result
+###############################################################################
+
+HOST_IP="$(
+    hostname -I 2>/dev/null |
+    awk '{print $1}'
+)"
+
+HOST_IP="${HOST_IP:-HOST-IP}"
+
+echo
+
+if (( FAIL != 0 )); then
+
+    cat <<EOF
+============================================================
+DockerManger native host install/repair FAILED final checks
+============================================================
+
+Review the warnings above.
+
+The installer has NOT reported this installation as healthy.
+
+Runtime data and Compose stack data have been preserved.
+EOF
+
+    exit 2
+fi
+
+
 cat <<EOF
-
 ============================================================
 DockerManger native host install/repair complete
 ============================================================
+
 Web UI      : https://$HOST_IP:$HTTPS_PORT
 App copy    : $APP_DST
-Runtime data: $DATA_DIR       (preserved on every rerun)
-Stacks      : $STACKS_DIR     (preserved on every rerun)
-Settings    : $INSTALLER_CONF (saved prompt answers; reused as next-run defaults)
-PHP-FPM     : $PHP_FPM_SERVICE
+Runtime data: $DATA_DIR
+              (preserved on every rerun)
 
-Re-run ./host_installer.sh after a git pull to update/repair the native install.
-Each normal rerun shows the prompts again with these saved values as defaults.
+Stacks      : $STACKS_DIR
+              (preserved on every rerun)
+
+Settings    : $INSTALLER_CONF
+              (saved prompt answers; reused as next-run defaults)
+
+PHP-FPM     : $PHP_FPM_SERVICE
+Console     : $ENABLE_CONSOLE
+Architecture: $(dpkg --print-architecture)
+
+Native UI   : DockerManger local console
+              Container-oriented Host Console selector hidden
+
+Re-run ./host_installer.sh after a git pull to update/repair
+the native installation.
+
+Each normal rerun shows the prompts again with the saved
+values as defaults.
+
 For a fully unattended repair using the saved values:
+
   DOCKERMANGER_RECONFIGURE=0 ./host_installer.sh
+
+============================================================
 EOF
-(( FAIL == 0 )) || exit 2
