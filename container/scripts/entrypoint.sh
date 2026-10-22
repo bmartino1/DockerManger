@@ -36,7 +36,7 @@ TLS_CERT="${CERT_DIR}/dockermanger.crt"
 TLS_KEY="${CERT_DIR}/dockermanger.key"
 
 NGINX_CONFIG="/etc/nginx/conf.d/dockermanger.conf"
-PHP_FPM_POOL="/etc/php/8.3/fpm/pool.d/www.conf"
+PHP_FPM_POOL="/etc/php/8.5/fpm/pool.d/www.conf"
 PHP_FPM_USER="www-data"
 
 # ============================================================================
@@ -276,7 +276,7 @@ echo "[DockerManger] PHP-FPM container environment enabled."
 echo "[DockerManger] PHP-FPM Host Console enabled: ${DOCKERMANGER_HOST_SHELL_ENABLED:-false}."
 
 # Validate the final generated pool configuration before runit starts.
-php-fpm8.3 -t
+php-fpm8.5 -t
 
 # ============================================================================
 # Stack Storage

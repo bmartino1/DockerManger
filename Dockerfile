@@ -1,4 +1,4 @@
-FROM phusion/baseimage:noble-1.0.0
+FROM phusion/baseimage:noble-1.0.3
 
 # ============================================================================
 # DockerManger Container Image
@@ -96,18 +96,16 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
-        php-fpm \
-        php-cli \
         openssh-client \
         openssl \
-        nodejs \
-        npm \
         build-essential \
         python3 \
         acl \
         bash \
         curl \
         ca-certificates \
+        gnupg \
+        software-properties-common \
         git \
         jq \
         nano \
@@ -131,6 +129,23 @@ RUN apt-get update && \
     update-locale LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
 
+
+# Latest stable PHP branch (Ubuntu Noble uses PHP 8.3 by default).
+# Ondrej PHP PPA supplies PHP 8.5 for Ubuntu 24.04.
+RUN add-apt-repository -y ppa:ondrej/php && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        php8.5-fpm php8.5-cli php8.5-common && \
+    update-alternatives --set php /usr/bin/php8.5 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Node.js 26 Current, installed from NodeSource (amd64 + arm64).
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x -o /tmp/nodesource.sh && \
+    bash /tmp/nodesource.sh && \
+    rm -f /tmp/nodesource.sh && \
+    apt-get install -y --no-install-recommends nodejs && \
+    node --version && npm --version && \
+    rm -rf /var/lib/apt/lists/*
 
 # ============================================================================
 # Docker CLI + Docker Compose v2
@@ -220,10 +235,10 @@ COPY container/nginx/default.conf \
 # ============================================================================
 
 COPY container/php/docker-manager.ini \
-    /etc/php/8.3/fpm/conf.d/99-dockermanger.ini
+    /etc/php/8.5/fpm/conf.d/99-dockermanger.ini
 
 COPY container/php/docker-manager.ini \
-    /etc/php/8.3/cli/conf.d/99-dockermanger.ini
+    /etc/php/8.5/cli/conf.d/99-dockermanger.ini
 
 
 # ============================================================================
@@ -263,7 +278,8 @@ COPY container/terminal/package.json /opt/dockermanger-terminal/package.json
 COPY container/terminal/server.js /opt/dockermanger-terminal/server.js
 COPY container/terminal/composerize.js /opt/dockermanger-terminal/composerize.js
 RUN cd /opt/dockermanger-terminal && \
-    npm install --omit=dev --no-audit --no-fund && \
+    npm install @xterm/xterm@latest composerize@latest node-pty@latest ws@latest --save --omit=dev --no-audit --no-fund && \
+    node -e "for(const m of ['@xterm/xterm','composerize','node-pty','ws']) require.resolve(m)" && \
     mkdir -p /var/www/dockermanger/public/vendor/xterm && \
     cp node_modules/@xterm/xterm/lib/xterm.js /var/www/dockermanger/public/vendor/xterm/xterm.js && \
     cp node_modules/@xterm/xterm/css/xterm.css /var/www/dockermanger/public/vendor/xterm/xterm.css

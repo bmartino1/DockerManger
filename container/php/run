@@ -32,4 +32,4 @@ set -e
 # restarted independently.
 mkdir -p /run/php
 
-exec /usr/sbin/php-fpm8.3 -F
+exec /usr/sbin/php-fpm8.5 -F
