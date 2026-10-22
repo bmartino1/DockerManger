@@ -8,7 +8,15 @@ final class Auth
 {
     private const FILE = '/data/auth/admin.json';
 
-    public static function configured(): bool { return is_file(self::FILE); }
+    public static function configured(): bool
+    {
+        $data = @file_get_contents(self::FILE);
+        if ($data === false) return false;
+        $account = json_decode($data, true);
+        return is_array($account) && isset($account['username'], $account['hash'])
+            && is_string($account['username']) && is_string($account['hash'])
+            && $account['username'] !== '' && $account['hash'] !== '';
+    }
     public static function loggedIn(): bool { return self::configured() && !empty($_SESSION['dm_admin']); }
 
     public static function requirePage(): void
@@ -27,10 +35,17 @@ final class Auth
         exit;
     }
 
+    public static function minimumPasswordLength(): int
+    {
+        $value = getenv('DOCKERMANGER_MIN_PASSWORD_LENGTH');
+        if ($value === false || !preg_match('/^[0-9]+$/', $value)) return 12;
+        return max(8, min(128, (int)$value));
+    }
+
     public static function setup(string $username, string $password): void
     {
         if (!preg_match('/^[A-Za-z][A-Za-z0-9_-]{2,31}$/', $username)) throw new \RuntimeException('Username must be 3–32 letters, numbers, _ or -, starting with a letter.');
-        if (strlen($password) < 12 || strlen($password) > 1024) throw new \RuntimeException('Password must be 12–1024 characters.');
+        if (strlen($password) < self::minimumPasswordLength() || strlen($password) > 1024) throw new \RuntimeException('Password must be ' . self::minimumPasswordLength() . '–1024 characters.');
         $dir = dirname(self::FILE);
         if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) throw new \RuntimeException('Cannot create /data/auth; check permissions.');
         $json = json_encode(['username'=>$username, 'hash'=>password_hash($password, PASSWORD_DEFAULT)], JSON_THROW_ON_ERROR);

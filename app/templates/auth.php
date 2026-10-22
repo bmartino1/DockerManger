@@ -9,5 +9,5 @@
 <form method="post" action="<?= htmlspecialchars($action, ENT_QUOTES) ?>">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
 <label for="username">Username</label><input id="username" name="username" autocomplete="username" required maxlength="32" value="<?= $action === '/setup.php' ? 'admin' : '' ?>">
-<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="<?= $action === '/setup.php' ? 'new-password' : 'current-password' ?>" required <?= $action === '/setup.php' ? 'minlength="12"' : '' ?>>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="<?= $action === '/setup.php' ? 'new-password' : 'current-password' ?>" required <?= $action === '/setup.php' ? 'minlength="' . \DockerManger\Auth::minimumPasswordLength() . '"' : '' ?>>
 <button type="submit"><?= htmlspecialchars($button, ENT_QUOTES) ?></button></form></main></body></html>

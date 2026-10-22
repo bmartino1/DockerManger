@@ -279,6 +279,32 @@ echo "[DockerManger] PHP-FPM Host Console enabled: ${DOCKERMANGER_HOST_SHELL_ENA
 php-fpm8.5 -t
 
 # ============================================================================
+# Persistent authentication storage
+# ============================================================================
+# Keep admin credentials private to the PHP-FPM worker. Do not change
+# ownership of the entire /data bind mount (TLS/SSH use separate permissions).
+AUTH_DIR=/data/auth
+AUTH_FILE="${AUTH_DIR}/admin.json"
+# /data is a bind mount. Repair the auth subdirectory on every start,
+# including existing installations where account creation partially succeeded.
+mkdir -p "${AUTH_DIR}"
+chown "${PHP_FPM_USER}:${PHP_FPM_USER}" "${AUTH_DIR}"
+chmod 0700 "${AUTH_DIR}"
+if [ -f "${AUTH_FILE}" ]; then
+    chown "${PHP_FPM_USER}:${PHP_FPM_USER}" "${AUTH_FILE}"
+    chmod 0600 "${AUTH_FILE}"
+fi
+if ! runuser -u "${PHP_FPM_USER}" -- test -w "${AUTH_DIR}"; then
+    echo "[DockerManger] ERROR: ${AUTH_DIR} is not writable by ${PHP_FPM_USER}." >&2
+    exit 1
+fi
+if [ -f "${AUTH_FILE}" ] && ! runuser -u "${PHP_FPM_USER}" -- test -r "${AUTH_FILE}"; then
+    echo "[DockerManger] ERROR: existing administrator account is unreadable by ${PHP_FPM_USER}." >&2
+    exit 1
+fi
+echo "[DockerManger] Authentication storage permissions ready (existing account preserved)."
+
+# ============================================================================
 # Stack Storage
 # ============================================================================
 
