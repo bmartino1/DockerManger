@@ -10,6 +10,7 @@ declare(strict_types=1);
  * host commands directly.
  */
 require_once dirname(__DIR__) . '/src/bootstrap.php';
+\DockerManger\Auth::requirePage();
 
 use DockerManger\Compose;
 use DockerManger\Docker;

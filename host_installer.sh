@@ -403,15 +403,36 @@ log "Installing host packages and side utilities"
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl gnupg lsb-release
+
+# PHP 8.5 stable packages (Ubuntu PPA / Debian Sury).
+. /etc/os-release
+if [[ "$ID" == "ubuntu" ]]; then
+    apt-get install -y --no-install-recommends software-properties-common
+    add-apt-repository -y ppa:ondrej/php
+elif [[ "$ID" == "debian" ]]; then
+    curl -fsSL https://packages.sury.org/php/apt.gpg -o /tmp/dockermanger-php.gpg
+    install -m 0644 /tmp/dockermanger-php.gpg /usr/share/keyrings/dockermanger-php.gpg
+    rm -f /tmp/dockermanger-php.gpg
+    echo "deb [signed-by=/usr/share/keyrings/dockermanger-php.gpg] https://packages.sury.org/php/ ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/dockermanger-php.list
+else
+    die "PHP 8.5 installer currently supports Ubuntu and Debian only"
+fi
+
+# Node.js 26 stable (NodeSource repository).
+curl -fsSL https://deb.nodesource.com/setup_26.x -o /tmp/dockermanger-nodesource.sh
+bash /tmp/dockermanger-nodesource.sh
+rm -f /tmp/dockermanger-nodesource.sh
+apt-get update
 
 apt-get install -y --no-install-recommends \
     nginx \
-    php-fpm \
-    php-cli \
+    php8.5-fpm \
+    php8.5-cli \
+    php8.5-common \
     openssh-client \
     openssl \
     nodejs \
-    npm \
     build-essential \
     python3 \
     acl \
@@ -555,6 +576,8 @@ fi
 ###############################################################################
 # PHP detection
 ###############################################################################
+
+update-alternatives --set php /usr/bin/php8.5 || die "Cannot select PHP 8.5"
 
 PHP_VERSION="$(
     php -r \

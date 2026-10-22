@@ -10,6 +10,7 @@ declare(strict_types=1);
  * Node/node-pty helper through Nginx's same-origin /terminal-ws proxy.
  */
 require_once dirname(__DIR__) . '/src/bootstrap.php';
+\DockerManger\Auth::requirePage();
 
 use DockerManger\Docker;
 

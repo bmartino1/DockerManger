@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 /** Dedicated stack-creation page. Docker-run conversion is conversion only. */
 require_once dirname(__DIR__) . '/src/bootstrap.php';
+\DockerManger\Auth::requirePage();
 
 use DockerManger\Compose;
 use DockerManger\SystemInfo;
@@ -21,7 +22,7 @@ $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, E
 <title>Create Stack · DockerManger</title>
 </head>
 <body><div class="app-shell">
-<header class="topbar"><a class="brand" href="/"><span class="logo">DM</span><span><strong>DockerManger</strong><small>Create managed Compose stack</small></span></a><div class="top-actions"><a class="button button-secondary" href="/">← Dashboard</a></div></header>
+<header class="topbar"><a class="brand" href="/"><span class="logo">DM</span><span><strong>DockerManger</strong><small>Create managed Compose stack</small></span></a><div class="top-actions"><a class="button button-secondary" href="/">← Dashboard</a></div><form method="post" action="/logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
 <main class="content create-page">
 <section class="page-heading"><div><span class="eyebrow">Compose</span><h1>Create Stack</h1><p>Create a Compose stack directly, or convert a Docker run command into editable Compose first.</p></div></section>
 <?php if (empty($storage['writable'])): ?><section class="notice notice-error"><strong>Compose storage is read-only.</strong><span><?= $escape($storage['path']) ?> must be writable before a stack can be created.</span></section><?php endif; ?>

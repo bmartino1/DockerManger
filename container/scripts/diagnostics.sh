@@ -184,11 +184,11 @@ else
     nginx -t 2>&1 || true
 fi
 
-if php-fpm8.3 -t >/dev/null 2>&1; then
+if php-fpm8.5 -t >/dev/null 2>&1; then
     status_ok "PHP-FPM Configuration"
 else
     status_warn "PHP-FPM Configuration"
-    php-fpm8.3 -t 2>&1 || true
+    php-fpm8.5 -t 2>&1 || true
 fi
 
 if pgrep -f '/opt/dockermanger-terminal/server.js' >/dev/null 2>&1; then
@@ -248,7 +248,7 @@ fi
 # Inspect the credentials attached to live FPM workers. PHP-FPM can drop
 # supplementary groups when creating workers, so `id www-data` alone does not
 # prove that the web process can access docker.sock.
-fpm_workers="$(pgrep -P "$(pgrep -o php-fpm8.3 2>/dev/null || true)" php-fpm8.3 2>/dev/null || true)"
+fpm_workers="$(pgrep -P "$(pgrep -o php-fpm8.5 2>/dev/null || true)" php-fpm8.5 2>/dev/null || true)"
 
 if [ -n "${fpm_workers}" ]; then
     first_worker="$(printf '%s\n' "${fpm_workers}" | head -1)"
@@ -275,7 +275,7 @@ fi
 
 echo
 echo "PHP-FPM DockerManger environment:"
-fpm_master="$(pgrep -o php-fpm8.3 2>/dev/null || pgrep -o php-fpm 2>/dev/null || true)"
+fpm_master="$(pgrep -o php-fpm8.5 2>/dev/null || pgrep -o php-fpm 2>/dev/null || true)"
 if [ -n "${fpm_master}" ] && [ -r "/proc/${fpm_master}/environ" ]; then
     fpm_env="$(tr '\0' '\n' < "/proc/${fpm_master}/environ" | grep -E '^(DOCKERMANGER_|STACKS_DIR=|TZ=)' || true)"
     if [ -n "${fpm_env}" ]; then
