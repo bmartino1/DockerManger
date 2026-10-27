@@ -3,15 +3,17 @@
 Docker Hub images: https://hub.docker.com/r/bmmbmm01/dockermanger
 
 DockerManger is a lightweight homelab Docker and Docker Compose
-management web UI for `amd64` and `arm64`.
+management web UI for `amd64` and `arm64`. Docker Hub `latest` and `0.2.0`
+are multiarchitecture images.
 
 The application uses Nginx, PHP-FPM, Docker CLI + Compose v2, and an
 optional Node.js/node-pty browser terminal. Compose files remain the
 source of truth beneath the configured stack directory.
 
 > DockerManger is intended for trusted home/lab environments.
-> Authentication/authorization remains a future milestone, so keep the
-> management UI on a trusted LAN/VPN.
+> DockerManger includes first-run administrator setup and session-based login.
+> Docker socket access remains highly privileged: use only on a trusted LAN/VPN,
+> and do not expose the management interface directly to the Internet.
 
 ---
 
@@ -29,6 +31,47 @@ source of truth beneath the configured stack directory.
 
 
 ---
+
+## New in v0.2.0: administrator setup and login
+
+On the first visit over HTTPS, DockerManger redirects to `/setup.php` to create
+its administrator account. The username field is prefilled with `admin`, but
+**there is no default password**. Choose your own username and password.
+
+- Usernames must be 3–32 characters, start with a letter, and contain only
+  letters, numbers, `_`, or `-`.
+- The default minimum password length is 12 characters. Configure
+  `DOCKERMANGER_MIN_PASSWORD_LENGTH=12` in `dockerenvironment.env` (supported
+  minimum range: 8–128).
+- After setup, sign in at `/login.php`; use **Sign out** to end the session.
+- The account is stored as a password hash in `/data/auth/admin.json`. Keep
+  `/data` persistent and protect its contents. No application database is required.
+- Existing installations with a persisted administrator account go directly to
+  the login screen after upgrading. A fresh `/data` requires new setup.
+
+Authentication protects the web UI and API but is **not** a substitute for
+network isolation. Mounting `/var/run/docker.sock` gives the application
+administrative control over the host Docker Engine.
+
+## Pull the published Docker Hub image
+
+The published `latest` and `0.2.0` tags support `linux/amd64` and
+`linux/arm64`; Docker selects the appropriate architecture automatically.
+For an existing deployment that uses `image: bmmbmm01/dockermanger:latest`:
+
+```bash
+cd /path/to/your/dockermanger-deployment
+docker compose config --quiet
+docker compose pull dockermanger
+docker compose up -d --no-deps --force-recreate dockermanger
+docker compose ps
+```
+
+Keep the existing `./data:/data` volume and stack mounts unchanged during
+upgrades. Back up the deployment's `compose.yaml`, environment file, and
+`data/` before major changes. The repository's own `compose.yaml` instead
+builds `dockermanger:dev` from source; it is not the same as a pull-only
+Docker Hub deployment.
 
 ## Installation choices
 
@@ -147,6 +190,7 @@ DockerManger/
 │   │   ├── create.php
 │   │   ├── health.php
 │   │   ├── index.php
+│   │   ├── setup.php / login.php / logout.php
 │   │   ├── css/app.css
 │   │   └── js/
 │   ├── src/
@@ -157,6 +201,7 @@ DockerManger/
 │   ├── terminal/
 │   └── scripts/
 ├── data/
+│   ├── auth/
 │   ├── certs/
 │   ├── compose_stacks/
 │   └── ssh/
@@ -183,6 +228,8 @@ Expected persistent data includes:
 
 ``` text
 /data/
+├── auth/
+│   └── admin.json
 ├── certs/
 │   ├── dockermanger.crt
 │   └── dockermanger.key
@@ -269,15 +316,15 @@ Docker Engine and can lead to host-level control. A root-backed native
 browser PTY is similarly powerful.
 
 State-changing web actions use CSRF tokens and explicit named
-operations, but user authentication/authorization is not yet
-implemented.
+operations. The application includes administrator login and session checks;
+this is a single-administrator system, not a multiuser role/permission model.
 
 Keep DockerManger on a trusted LAN/VPN and do not expose the management
 interface directly to the public Internet.
 
 ## Updating
 
-Container deployment:
+Source-built container deployment (repository `compose.yaml`):
 
 ``` bash
 cd DockerManger
@@ -303,7 +350,7 @@ DOCKERMANGER_RECONFIGURE=0 ./host_installer.sh
 
 ## Development status
 
-The core local-build feature set includes Docker/Compose discovery,
+The current feature set includes first-run administrator authentication, Docker/Compose discovery,
 controlled lifecycle operations, Compose creation/editing and
 validation, `.env` handling, Composerize conversion, logs, runtime
 inspection, and browser PTY support.
@@ -313,6 +360,13 @@ Native-host installation has been tested during development on both
 
 The goal is to keep DockerManger understandable and maintainable rather
 than turning it into a large management framework.
+
+## Release and support
+
+- Source: https://github.com/bmartino1/DockerManger
+- Published images: https://hub.docker.com/r/bmmbmm01/dockermanger
+- Release tags: `latest`, `0.2.0`, `amd64`, and `arm64`
+- Node.js terminal uses xterm.js, node-pty and WebSockets. Docker Run → Compose conversion uses Composerize; its current dependency tree includes deprecated `core-js@2`, which is tracked as a future dependency-maintenance task.
 
 ## License
 
