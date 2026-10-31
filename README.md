@@ -3,8 +3,6 @@
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-bmmbmm01%2Fdockermanger-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/bmmbmm01/dockermanger)
 [![GitHub Source](https://img.shields.io/badge/Source-bmartino1%2FDockerManger-181717?logo=github&logoColor=white)](https://github.com/bmartino1/DockerManger)
 
-**Docker Hub:** https://hub.docker.com/r/bmmbmm01/dockermanger · **Source code:** https://github.com/bmartino1/DockerManger
-
 DockerManger is a lightweight homelab Docker and Docker Compose
 management web UI for `amd64` and `arm64`. Docker Hub `latest` and `0.2.0`
 are multiarchitecture images.
