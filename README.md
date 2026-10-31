@@ -1,6 +1,9 @@
 # DockerManger
 
-Docker Hub images: https://hub.docker.com/r/bmmbmm01/dockermanger
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-bmmbmm01%2Fdockermanger-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/bmmbmm01/dockermanger)
+[![GitHub Source](https://img.shields.io/badge/Source-bmartino1%2FDockerManger-181717?logo=github&logoColor=white)](https://github.com/bmartino1/DockerManger)
+
+**Docker Hub:** https://hub.docker.com/r/bmmbmm01/dockermanger · **Source code:** https://github.com/bmartino1/DockerManger
 
 DockerManger is a lightweight homelab Docker and Docker Compose
 management web UI for `amd64` and `arm64`. Docker Hub `latest` and `0.2.0`
@@ -102,7 +105,7 @@ HTTP  -> http://HOST-IP:5001
 HTTPS -> https://HOST-IP:5443
 ```
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the container
+See [docs/DEPLOYMENT.md](https://github.com/bmartino1/DockerManger/blob/main/docs/DEPLOYMENT.md) for the container
 deployment details.
 
 ### 2. Native / local host deployment
@@ -144,7 +147,7 @@ The native defaults are HTTP `80`, HTTPS `443`, and stack storage at
 `/opt/stacks`. `/data` and the configured stack directory are preserved
 across installer reruns.
 
-See **[docs/LOCAL-HOST-INSTALL.md](docs/LOCAL-HOST-INSTALL.md)** for the
+See **[docs/LOCAL-HOST-INSTALL.md](https://github.com/bmartino1/DockerManger/blob/main/docs/LOCAL-HOST-INSTALL.md)** for the
 full native-host installation, update, console, permissions, and
 troubleshooting guide.
 
@@ -304,9 +307,9 @@ The native installer prompts before enabling the browser PTY and adapts
 the installed UI so the container-oriented Host Console selector is not
 shown. The repository application files themselves are not modified.
 
-See [docs/HOST-CONSOLE.md](docs/HOST-CONSOLE.md) for the container
+See [docs/HOST-CONSOLE.md](https://github.com/bmartino1/DockerManger/blob/main/docs/HOST-CONSOLE.md) for the container
 host-console model and
-[docs/LOCAL-HOST-INSTALL.md](docs/LOCAL-HOST-INSTALL.md) for native
+[docs/LOCAL-HOST-INSTALL.md](https://github.com/bmartino1/DockerManger/blob/main/docs/LOCAL-HOST-INSTALL.md) for native
 behavior.
 
 ## Docker socket and native-host security
@@ -363,6 +366,9 @@ than turning it into a large management framework.
 
 ## Release and support
 
+This README is shared between GitHub and the Docker Hub repository overview. All source/documentation links use canonical GitHub URLs so they work in both places.
+
+
 - Source: https://github.com/bmartino1/DockerManger
 - Published images: https://hub.docker.com/r/bmmbmm01/dockermanger
 - Release tags: `latest`, `0.2.0`, `amd64`, and `arm64`
@@ -370,4 +376,4 @@ than turning it into a large management framework.
 
 ## License
 
-See `LICENSE`.
+See [LICENSE](https://github.com/bmartino1/DockerManger/blob/main/LICENSE).
