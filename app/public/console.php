@@ -52,7 +52,7 @@ if ($container !== null) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/modern.css">
     <link rel="stylesheet" href="/vendor/xterm/xterm.css">
     <title>Console · DockerManger</title>
 </head>
@@ -60,7 +60,7 @@ if ($container !== null) {
 <div class="console-page">
     <header class="topbar">
         <a class="brand" href="/"><span class="logo">DM</span><span><strong>DockerManger</strong><small>Interactive console</small></span></a>
-        <a class="button button-secondary" href="<?= $escape($back) ?>">← Back</a>
+        <div class="top-actions"><a class="button button-secondary" href="<?= $escape($back) ?>">← Back</a><form method="post" action="/logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div>
     </header>
     <main class="content">
         <section class="page-heading console-heading">
