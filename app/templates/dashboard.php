@@ -53,7 +53,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
 
     <div class="layout">
 
-        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a href="/?view=apps#resources">⌁ Resources</a><a href="/?view=apps#settings">⚙ Settings</a></nav>
+        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a class="dashboard-stack-shortcut" href="/create.php">＋ Create Stack</a><a href="/?view=apps#resources">⌁ Resources</a><a href="/?view=apps#settings">⚙ Settings</a></nav>
             <div class="sidebar-head">
                 <div>
                     <span class="eyebrow">Compose</span>
