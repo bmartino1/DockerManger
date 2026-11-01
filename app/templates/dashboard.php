@@ -48,11 +48,8 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 Docker <?= !empty($docker['available']) ? 'Connected' : 'Unavailable' ?>
             </span>
 
-            <button class="button button-secondary" type="button" id="refresh-dashboard">
-                Refresh
-            </button>
-        </div>
-    <div class="top-actions"><a class="button button-secondary" href="/console.php?target=local">Console</a><form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div></header>
+            <button class="button button-secondary" type="button" id="refresh-dashboard">Refresh</button>
+<a class="button button-secondary" href="/console.php?target=local">Console</a><form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div></header>
 
     <div class="layout">
 
