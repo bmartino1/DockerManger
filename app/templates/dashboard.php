@@ -195,6 +195,16 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         <span>Timezone</span>
                         <strong><?= $escape($system['timezone']) ?></strong>
                     </div>
+
+                    <div>
+                        <span>Node.js</span>
+                        <strong><?= $escape($system['nodeVersion'] ?? 'Unavailable') ?></strong>
+                    </div>
+
+                    <div>
+                        <span>npm</span>
+                        <strong><?= $escape($system['npmVersion'] ?? 'Unavailable') ?></strong>
+                    </div>
                 </div>
 
                 <?php if (empty($docker['available'])): ?>
