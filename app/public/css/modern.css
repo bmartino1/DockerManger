@@ -78,3 +78,7 @@
 /* Dashboard-only stack creation shortcut beneath the primary Stacks link. */
 .app-shell .dm-primary-nav .dashboard-stack-shortcut{margin:2px 8px 8px 19px;padding:9px 12px;background:#1a3652;border:1px solid #345a7e;border-radius:9px;color:#d4eaff;font-weight:650;text-align:center}
 .app-shell .dm-primary-nav .dashboard-stack-shortcut:hover{background:#285783;border-color:#5084ae;color:#fff}
+
+/* Application settings are contextual to Apps, not a primary navigation page. */
+.apps-settings-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:35px;padding:7px 12px;border:1px solid var(--dm-border);border-radius:9px;background:#172538;color:#cfe5fb!important;font-size:12px;font-weight:600;text-decoration:none}
+.apps-settings-link:hover{background:#263b54;color:#fff!important}
