@@ -34,7 +34,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
             <span class="logo">DM</span>
             <span><strong>DockerManger</strong><small>Compose &amp; container management</small></span>
         </a>
-        <div class="top-actions"><a class="button button-secondary" href="/">← Dashboard</a></div>
+        <div class="top-actions"><a class="button button-secondary" href="/">← Home / Apps</a></div>
     <a class="button button-secondary" href="/console.php?target=local">Console</a> <form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
 
     <div class="layout">
