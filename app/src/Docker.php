@@ -141,6 +141,25 @@ final class Docker
         ];
     }
 
+    /** One bounded Docker sample, with no background collection. */
+    public function stats(): array
+    {
+        $result = Command::run($this->binary, ['stats', '--no-stream', '--format', '{{json .}}'], null, 15);
+        if ($result['exitCode'] !== 0) throw new RuntimeException($result['output'] ?: 'Unable to sample Docker stats.');
+        $records = [];
+        foreach (preg_split('/\\R/', trim($result['stdout'])) ?: [] as $line) {
+            $raw = json_decode($line, true);
+            if (!is_array($raw)) continue;
+            $records[] = [
+                'name' => (string) ($raw['Name'] ?? ''),
+                'cpuPercent' => max(0.0, (float) ($raw['CPUPerc'] ?? 0)),
+                'memoryPercent' => max(0.0, (float) ($raw['MemPerc'] ?? 0)),
+                'memoryUsage' => (string) ($raw['MemUsage'] ?? ''),
+            ];
+        }
+        return $records;
+    }
+
     public function start(string $identifier): array { return $this->containerAction('start', $identifier); }
     public function stop(string $identifier): array { return $this->containerAction('stop', $identifier); }
     public function restart(string $identifier): array { return $this->containerAction('restart', $identifier); }
