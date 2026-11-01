@@ -104,6 +104,12 @@ $running = count(array_filter($containers, static fn(array $c): bool => !empty($
 $stopped = count($containers) - $running;
 $invalidStacks = count(array_filter($stacks, static fn(array $s): bool => empty($s['valid'])));
 
+$view = trim((string) ($_GET['view'] ?? 'home'));
+if ($view !== 'dashboard') {
+    require dirname(__DIR__) . '/templates/home.php';
+    exit;
+}
+
 // Dashboard mount summaries come from docker inspect, but environment values are
 // deliberately not exposed because they frequently contain secrets.
 $containerDetailsById = [];
