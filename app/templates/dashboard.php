@@ -53,7 +53,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 Refresh
             </button>
         </div>
-    <form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
+    <a class="button button-secondary" href="/console.php?target=local">Console</a> <form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
 
     <div class="layout">
 
