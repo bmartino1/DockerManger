@@ -15,12 +15,11 @@ The native installer is additive to the Docker deployment. It does not
 replace `Dockerfile`, `compose.yaml`, or the normal container
 deployment.
 
-> DockerManger currently has no application authentication/authorization
-> layer. Docker control and the optional browser PTY provide powerful
-> host access. Keep the UI on a trusted LAN/VPN and do not expose it
-> directly to the public Internet.
+> DockerManger requires administrator login for the web UI, API, and terminal WebSocket upgrades. The native browser PTY runs as root and Docker access remains host-privileged. Use only on a trusted LAN/VPN; do not expose this management UI to the public Internet.
 
 ## Quick install
+
+Use a dedicated Debian 12/13 or Ubuntu 24.04 LXC with systemd and Docker-capable Proxmox settings. Enable nesting (and keyctl where required) in the LXC configuration before starting Docker. The installer supports amd64 and arm64; it cannot enable LXC host features itself. For testing, keep the web UI accessible only from your trusted network.
 
 Start with a Debian-family host. `git` is the only package normally
 needed before cloning; the installer handles the DockerManger host
