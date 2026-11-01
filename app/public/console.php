@@ -60,7 +60,7 @@ if ($container !== null) {
 <div class="console-page">
     <header class="topbar">
         <a class="brand" href="/"><span class="logo">DM</span><span><strong>DockerManger</strong><small>Interactive console</small></span></a>
-        <nav class="console-top-nav" aria-label="Main navigation"><a href="/">Home</a><a href="/?view=dashboard">Dashboard</a><a href="/#stacks">Stacks</a><a href="/#resources">Resources</a></nav><div class="top-actions"><a class="button button-secondary" href="<?= $escape($back) ?>">← Back</a><form method="post" action="/logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div>
+        <nav class="console-top-nav" aria-label="Main navigation"><a href="/">Dashboard</a><a href="/?view=apps">Apps</a><a href="/?view=apps#stacks">Stacks</a><a href="/?view=apps#resources">Resources</a></nav><div class="top-actions"><a class="button button-secondary" href="<?= $escape($back) ?>">← Back</a><form method="post" action="/logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div>
     </header>
     <main class="content">
         <section class="page-heading console-heading">
