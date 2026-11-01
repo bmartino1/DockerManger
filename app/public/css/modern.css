@@ -74,3 +74,7 @@
 .app-shell .sidebar > .sidebar-section {
     display: none;
 }
+
+/* Dashboard-only stack creation shortcut beneath the primary Stacks link. */
+.app-shell .dm-primary-nav .dashboard-stack-shortcut{margin:2px 8px 8px 19px;padding:9px 12px;background:#1a3652;border:1px solid #345a7e;border-radius:9px;color:#d4eaff;font-weight:650;text-align:center}
+.app-shell .dm-primary-nav .dashboard-stack-shortcut:hover{background:#285783;border-color:#5084ae;color:#fff}
