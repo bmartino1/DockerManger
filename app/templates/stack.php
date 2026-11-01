@@ -24,7 +24,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/modern.css">
     <title><?= isset($selected) ? $escape($selected['name']) . ' · ' : '' ?>DockerManger</title>
 </head>
 <body>
@@ -38,7 +38,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
     <form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
 
     <div class="layout">
-        <aside class="sidebar">
+        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Home / Apps</a><a href="/?view=dashboard">▤ Dashboard</a><a href="/#stacks">▦ Stacks</a><a href="/#containers">□ Containers</a><a href="/#resources">⌁ Resources</a><a href="/console.php?target=local">›_ Console</a><a href="/#settings">⚙ Settings</a></nav>
             <div class="sidebar-head">
                 <div><span class="eyebrow">Compose</span><h2>Stacks</h2></div>
                 <a class="button button-secondary button-small sidebar-compose-button" href="/create.php">+ Compose</a>
