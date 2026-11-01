@@ -20,15 +20,19 @@ source of truth beneath the configured stack directory.
 
 # WebUI Example
 
-<img width="1708" height="1138" alt="image" src="https://github.com/user-attachments/assets/fbfdc959-f79b-4fa9-a553-e7789c17c0cc" />
+<img width="1713" height="583" alt="Screenshot 2026-11-01 150750" src="https://github.com/user-attachments/assets/89aae8bc-6d82-4369-9f59-89afbc59e14d" />
 
-<img width="1715" height="1164" alt="image" src="https://github.com/user-attachments/assets/9e3bc15c-8d0b-4598-a75e-1affc120a579" />
+<img width="1701" height="481" alt="Screenshot 2026-11-01 150739" src="https://github.com/user-attachments/assets/3d857c37-7c74-4cc1-a1f0-0db216631447" />
 
-<img width="1690" height="1295" alt="image" src="https://github.com/user-attachments/assets/7606221c-a763-439d-93c1-082f6e015b45" />
+<img width="1698" height="881" alt="Screenshot 2026-11-01 150725" src="https://github.com/user-attachments/assets/f8f9a460-11e8-4ce7-928f-6e1b0bf692bc" />
 
-<img width="1018" height="1090" alt="image" src="https://github.com/user-attachments/assets/97384762-8acd-476e-a68d-6f4617c327a4" />
+<img width="1706" height="1094" alt="Screenshot 2026-11-01 150714" src="https://github.com/user-attachments/assets/71108eda-ef66-4060-9522-ddb4f93cb062" />
 
-<img width="1716" height="1398" alt="image" src="https://github.com/user-attachments/assets/1174c8eb-006b-4ef3-82e3-ae993479d807" />
+<img width="1715" height="993" alt="Screenshot 2026-11-01 150701" src="https://github.com/user-attachments/assets/e8c10328-83b9-4b39-a740-fa1051198459" />
+
+<img width="1712" height="959" alt="Screenshot 2026-11-01 150646" src="https://github.com/user-attachments/assets/d7ea34da-8aca-4b3c-a7d7-7feb93c8760f" />
+
+<img width="1708" height="998" alt="Screenshot 2026-11-01 150627" src="https://github.com/user-attachments/assets/1958d81e-1c6d-4db3-a154-6a52ce06b8fa" />
 
 
 ---
