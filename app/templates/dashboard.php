@@ -48,12 +48,11 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 Docker <?= !empty($docker['available']) ? 'Connected' : 'Unavailable' ?>
             </span>
 
-            <a class="button button-secondary" href="/console.php?target=local">Console</a>
             <button class="button button-secondary" type="button" id="refresh-dashboard">
                 Refresh
             </button>
         </div>
-    <a class="button button-secondary" href="/console.php?target=local">Console</a> <form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></header>
+    <div class="top-actions"><a class="button button-secondary" href="/console.php?target=local">Console</a><form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div></header>
 
     <div class="layout">
 
@@ -64,7 +63,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <h2>Stacks</h2>
                 </div>
 
-                <a class="button button-secondary button-small sidebar-compose-button" href="/create.php">+ Compose</a>
+                
             </div>
 
             <label class="search-box">
@@ -132,7 +131,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         · stacks at <?= $escape($system['stacksDir']) ?>
                     </p>
                 </div>
-                <a class="button create-stack-cta" href="/create.php"><strong>+ Create Stack</strong><span>Compose or Docker Run</span></a>
+                
             </section>
 
             <section class="stats" aria-label="DockerManger summary">
