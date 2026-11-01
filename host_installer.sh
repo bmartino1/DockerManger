@@ -610,6 +610,7 @@ log "Refreshing application copy; preserving runtime/stack data"
 install -d -m 0755 \
     "$APP_DST" \
     "$TERMINAL_DST" \
+    "$DATA_DIR/auth" \
     "$DATA_DIR/certs" \
     "$DATA_DIR/ssh" \
     "$DATA_DIR/compose_stacks" \
@@ -728,6 +729,15 @@ if [[ -d "$REPO_DATA_SRC" ]]; then
         --ignore-existing \
         "$REPO_DATA_SRC/" \
         "$DATA_DIR/"
+fi
+
+# PHP-FPM runs as www-data. First-run administrator setup needs an
+# existing, private, writable auth directory. Preserve any account file.
+chown www-data:www-data "$DATA_DIR/auth"
+chmod 0700 "$DATA_DIR/auth"
+
+if ! runuser -u www-data -- test -w "$DATA_DIR/auth"; then
+    die "$DATA_DIR/auth is not writable by www-data; account setup cannot succeed."
 fi
 
 chmod 700 \
