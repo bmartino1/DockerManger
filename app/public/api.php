@@ -79,6 +79,14 @@ try {
                 'containers' => $docker['available'] ? $dockerClient->containers() : [],
             ], $docker['available'] ? 200 : 503);
 
+        case 'stats':
+            $docker = $dockerClient->info();
+            respond([
+                'ok' => $docker['available'],
+                'sampledAt' => date(DATE_ATOM),
+                'stats' => $docker['available'] ? $dockerClient->stats() : [],
+            ], $docker['available'] ? 200 : 503);
+
         case 'stacks':
             $docker = $dockerClient->info();
             $containers = $docker['available'] ? $dockerClient->containers() : [];
