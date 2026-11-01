@@ -1036,7 +1036,16 @@ server {
         fastcgi_pass unix:$PHP_FPM_SOCK;
     }
 
+    location = /terminal-auth-internal {
+        internal;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $APP_DST/public/terminal-auth.php;
+        fastcgi_param SCRIPT_NAME /terminal-auth.php;
+        fastcgi_pass unix:$PHP_FPM_SOCK;
+    }
+
     location = /terminal-ws {
+        auth_request /terminal-auth-internal;
         proxy_pass http://127.0.0.1:3000;
 
         proxy_http_version 1.1;
