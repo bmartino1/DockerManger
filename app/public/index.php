@@ -104,8 +104,8 @@ $running = count(array_filter($containers, static fn(array $c): bool => !empty($
 $stopped = count($containers) - $running;
 $invalidStacks = count(array_filter($stacks, static fn(array $s): bool => empty($s['valid'])));
 
-$view = trim((string) ($_GET['view'] ?? 'home'));
-if ($view !== 'dashboard') {
+$view = trim((string) ($_GET['view'] ?? 'dashboard'));
+if ($view === 'apps') {
     require dirname(__DIR__) . '/templates/home.php';
     exit;
 }
