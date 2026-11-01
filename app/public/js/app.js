@@ -10,6 +10,24 @@
     const refresh = document.getElementById('refresh-dashboard');
     if (refresh) refresh.addEventListener('click', () => location.reload());
 
+    const resourceButton = document.getElementById('refresh-resources');
+    const resourceSummary = document.getElementById('resource-summary');
+    const escapeHtml = value => { const n=document.createElement('span'); n.textContent=String(value??''); return n.innerHTML; };
+    if (resourceButton && resourceSummary) resourceButton.addEventListener('click', async () => {
+        resourceButton.disabled=true; resourceButton.textContent='Sampling…';
+        resourceSummary.innerHTML='<div class="resource-placeholder">Reading one Docker stats sample…</div>';
+        try {
+            const response=await fetch('/api.php?resource=stats',{cache:'no-store'}), json=await response.json();
+            if(!json.ok) throw new Error(json.error||'Docker stats unavailable.');
+            if(!json.stats?.length){resourceSummary.innerHTML='<div class="resource-placeholder">No running containers to sample.</div>';return;}
+            resourceSummary.innerHTML=json.stats.slice(0,8).map(item=>{
+                const cpu=Math.max(0,Number(item.cpuPercent||0)), mem=Math.max(0,Number(item.memoryPercent||0));
+                return '<div class="resource-row"><span class="resource-name">'+escapeHtml(item.name)+'</span><span class="meter"><span style="width:'+Math.min(mem,100)+'%"></span></span><span class="resource-value">CPU '+cpu.toFixed(1)+'%</span><span class="resource-value">RAM '+mem.toFixed(1)+'%</span></div>';
+            }).join('');
+        } catch(error) { resourceSummary.innerHTML='<div class="resource-placeholder">'+escapeHtml(error.message)+'</div>'; }
+        finally { resourceButton.disabled=false; resourceButton.textContent='Sample now'; }
+    });
+
     // All mutations go through the named-operation API with the page CSRF token.
     async function post(data, outputElement = null) {
         if (outputElement) { outputElement.hidden = false; outputElement.textContent = 'Working…'; }
