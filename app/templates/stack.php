@@ -37,7 +37,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
         <div class="top-actions"><a class="button button-secondary" href="/console.php?target=local">Console</a><form method="post" action="/logout.php" style="margin-left:auto"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>"><button class="button button-secondary" type="submit">Sign out</button></form></div></header>
 
     <div class="layout">
-        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a href="/?view=apps#resources">⌁ Resources</a><a href="/?view=apps#settings">⚙ Settings</a></nav>
+        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a href="/?view=apps#resources">⌁ Resources</a></nav>
             <div class="sidebar-head">
                 <div><span class="eyebrow">Compose</span><h2>Stacks</h2></div>
                 <a class="button button-secondary button-small sidebar-compose-button" href="/create.php">+ Compose</a>
