@@ -4,8 +4,8 @@
 [![GitHub Source](https://img.shields.io/badge/Source-bmartino1%2FDockerManger-181717?logo=github&logoColor=white)](https://github.com/bmartino1/DockerManger)
 
 DockerManger is a lightweight homelab Docker and Docker Compose
-management web UI for `amd64` and `arm64`. Docker Hub `latest` and `0.2.0`
-are multiarchitecture images.
+management web UI for `amd64` and `arm64`. Docker Hub publishes **three tags**:
+`latest` (multi-architecture), `amd64` (x86-64), and `arm64` (64-bit ARM).
 
 The application uses Nginx, PHP-FPM, Docker CLI + Compose v2, and an
 optional Node.js/node-pty browser terminal. Compose files remain the
@@ -33,7 +33,7 @@ source of truth beneath the configured stack directory.
 
 ---
 
-## New in v0.2.0: administrator setup and login
+## Administrator setup and login
 
 On the first visit over HTTPS, DockerManger redirects to `/setup.php` to create
 its administrator account. The username field is prefilled with `admin`, but
@@ -56,8 +56,21 @@ administrative control over the host Docker Engine.
 
 ## Pull the published Docker Hub image
 
-The published `latest` and `0.2.0` tags support `linux/amd64` and
-`linux/arm64`; Docker selects the appropriate architecture automatically.
+The published **`latest`** tag is a multi-platform image index for
+`linux/amd64` and `linux/arm64`. Docker automatically pulls the right platform.
+The `amd64` and `arm64` tags are single-platform alternatives.
+
+| Tag | Platforms | When to use |
+| --- | --- | --- |
+| [`latest`](https://hub.docker.com/r/bmmbmm01/dockermanger/tags) | `linux/amd64`, `linux/arm64` | **Recommended**; automatic architecture selection |
+| `amd64` | `linux/amd64` | Explicit x86-64 image |
+| `arm64` | `linux/arm64` | Explicit ARM64 image, such as 64-bit Raspberry Pi |
+
+The three tags were published and the multi-platform index was verified
+on **November 1, 2026**. The verified `latest` digest at publication was
+`sha256:45a3863a518c1393df23fc19081a3010cb2b7b0af3ccc367398347947f92b3f4`.
+Tags are mutable; pin this digest for reproducible deployments, or follow
+`latest` to receive subsequent releases.
 For an existing deployment that uses `image: bmmbmm01/dockermanger:latest`:
 
 ```bash
@@ -73,6 +86,15 @@ upgrades. Back up the deployment's `compose.yaml`, environment file, and
 `data/` before major changes. The repository's own `compose.yaml` instead
 builds `dockermanger:dev` from source; it is not the same as a pull-only
 Docker Hub deployment.
+
+Example pull commands:
+
+```bash
+docker pull bmmbmm01/dockermanger:latest
+# Optional platform-specific pulls:
+docker pull bmmbmm01/dockermanger:amd64
+docker pull bmmbmm01/dockermanger:arm64
+```
 
 ## Installation choices
 
@@ -149,7 +171,16 @@ See **[docs/LOCAL-HOST-INSTALL.md](https://github.com/bmartino1/DockerManger/blo
 full native-host installation, update, console, permissions, and
 troubleshooting guide.
 
-## Current application
+## Web UI and features
+
+The current navigation is intentionally small: **Dashboard** (default landing
+page), **Apps** (cards, filtering, third-party discovery and contextual display
+settings), **Stacks** (Compose project management and creation), and
+**Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
+A top-right **Console** button provides terminal access. The Dashboard retains
+Docker host/runtime versions (including PHP, Node.js and npm), container
+inventory, ports, ownership, and mount details. Standalone containers remain
+available from the inventory; their controls have not been removed.
 
 Current behavior includes:
 
@@ -167,8 +198,8 @@ Current behavior includes:
 -   Docker-run-to-Compose conversion using Composerize.
 -   Standalone/third-party container detail pages.
 -   xterm.js console support through the Node/node-pty terminal helper.
--   JSON resources for system, containers, stacks, logs, and controlled
-    actions.
+-   JSON resources for system, containers, stacks, logs, one-shot Docker stats,
+    and controlled actions.
 
 Read-only API resources include:
 
@@ -176,6 +207,7 @@ Read-only API resources include:
 GET /api.php?resource=system
 GET /api.php?resource=containers
 GET /api.php?resource=stacks
+GET /api.php?resource=stats
 ```
 
 DockerManger does not expose an arbitrary shell-command HTTP API.
@@ -275,8 +307,63 @@ aarch64  -> arm64
 The current Raspberry Pi target is a 64-bit OS. `arm/v7` is not a
 primary target.
 
-The project has been development-tested on both amd64 and arm64,
-including a Debian/Proxmox LXC environment and a 64-bit Raspberry Pi.
+The current images were built from the same GitHub source checkout with
+Docker Buildx on an amd64 Debian/Proxmox LXC. ARM64 execution used
+PVE-host `binfmt_misc`/QEMU. Both locally built images passed basic runtime
+smoke tests (PHP, Node.js, npm, Docker CLI, Compose, and `node-pty`/WebSocket
+module loading) before publication. This is **not** a substitute for a full
+browser/SSH integration test of each published image.
+
+## Rebuilding and publishing multi-architecture images
+
+A Buildx builder with the `docker-container` driver and functioning
+`linux/arm64` emulation (or a native ARM64 builder) is required to reproduce
+the cross-architecture build on an amd64 host. On a Proxmox LXC, configure
+QEMU/`binfmt_misc` on the PVE host if the container cannot register it.
+
+From a clean checkout, first validate the ARM64 runtime:
+
+```bash
+docker run --rm --platform linux/arm64 alpine:3.22 uname -m
+docker buildx create --name dockermanger-multiarch --driver docker-container --use
+docker buildx inspect --bootstrap
+```
+
+The Alpine command should return `aarch64`. If a builder with this name
+already exists, use `docker buildx use dockermanger-multiarch` instead.
+
+Build each platform locally and test it before publishing:
+
+```bash
+docker buildx build --builder dockermanger-multiarch --platform linux/amd64 \
+  -t dockermanger:test-amd64 --load .
+docker buildx build --builder dockermanger-multiarch --platform linux/arm64 \
+  -t dockermanger:test-arm64 --load .
+
+for arch in amd64 arm64; do
+  docker run --rm --platform "linux/$arch" --entrypoint /bin/bash \
+    "dockermanger:test-$arch" -c \
+    'php -v | head -1; node -v; npm -v; docker --version; docker compose version; cd /opt/dockermanger-terminal && node -e "require(\"node-pty\"); require(\"ws\"); console.log(\"PTY modules OK\")"'
+done
+```
+
+After validation, log in to Docker Hub, tag and push **the tested images**,
+and create the combined `latest` index without rebuilding:
+
+```bash
+docker login -u bmmbmm01
+docker tag dockermanger:test-amd64 bmmbmm01/dockermanger:amd64
+docker tag dockermanger:test-arm64 bmmbmm01/dockermanger:arm64
+docker push bmmbmm01/dockermanger:amd64
+docker push bmmbmm01/dockermanger:arm64
+docker buildx imagetools create -t bmmbmm01/dockermanger:latest \
+  bmmbmm01/dockermanger:amd64 bmmbmm01/dockermanger:arm64
+docker buildx imagetools inspect bmmbmm01/dockermanger:latest
+```
+
+Verify that the final index lists both `linux/amd64` and `linux/arm64`.
+Keep the Docker Hub repository to the three user-facing tags; registry digest
+records may still be visible separately.
 
 ## Console model
 
@@ -364,12 +451,12 @@ than turning it into a large management framework.
 
 ## Release and support
 
-This README is shared between GitHub and the Docker Hub repository overview. All source/documentation links use canonical GitHub URLs so they work in both places.
+This README is the canonical text for both GitHub and the Docker Hub repository overview. Docker Hub does not automatically update its overview when this GitHub file changes; copy the Markdown there after each documentation update. All source/documentation links use canonical GitHub URLs so they work on both sites.
 
 
 - Source: https://github.com/bmartino1/DockerManger
 - Published images: https://hub.docker.com/r/bmmbmm01/dockermanger
-- Release tags: `latest`, `0.2.0`, `amd64`, and `arm64`
+- Current published tags: `latest` (multi-platform), `amd64`, `arm64`
 - Node.js terminal uses xterm.js, node-pty and WebSockets. Docker Run → Compose conversion uses Composerize; its current dependency tree includes deprecated `core-js@2`, which is tracked as a future dependency-maintenance task.
 
 ## License
