@@ -46,3 +46,19 @@
 .app-shell .brand small{font-size:11px}
 .app-shell .topbar .button{white-space:nowrap}
 @media(max-width:760px){.app-shell .topbar{padding:10px 13px;height:auto;flex-wrap:wrap}.app-shell .layout{grid-template-columns:1fr}.app-shell .sidebar{position:static;height:auto;max-height:360px}.app-shell .content{min-width:0}.app-shell .top-actions{flex-wrap:wrap}.modern-top-actions{gap:7px}}
+
+/* Navigation hierarchy and compact action layout */
+.modern-page-action{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.modern-page-action h1{margin:0}
+.modern-page-action .button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 17px;white-space:nowrap}
+#resources>.button{margin-right:8px}
+#resources>label{display:inline-flex;align-items:center;gap:8px}
+#resources #interval{margin:0}
+#resources .modern-panel{margin-top:20px}
+.app-shell .topbar>.top-actions:last-child{margin-left:auto}
+.app-shell .topbar form{margin:0}
+.app-shell .topbar .top-actions{gap:10px}
+.app-shell .create-stack-cta{display:none}
+.app-shell .stack-actions{gap:8px;flex-wrap:wrap}
+.app-shell .stack-actions .button{white-space:nowrap}
+@media(max-width:700px){.modern-page-action{align-items:flex-start;flex-direction:column}#resources>label{margin-top:10px}}
