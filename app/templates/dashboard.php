@@ -27,7 +27,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
     <link rel="icon" href="/favicon.ico" sizes="any">
     <title>DockerManger</title>
 
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/modern.css">
 </head>
 
 <body>
@@ -57,7 +57,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
 
     <div class="layout">
 
-        <aside class="sidebar">
+        <aside class="sidebar"><nav class="dm-primary-nav" aria-label="Main navigation"><a href="/">⌂ Home / Apps</a><a href="/?view=dashboard">▤ Dashboard</a><a href="/#stacks">▦ Stacks</a><a href="/#containers">□ Containers</a><a href="/#resources">⌁ Resources</a><a href="/console.php?target=local">›_ Console</a><a href="/#settings">⚙ Settings</a></nav>
             <div class="sidebar-head">
                 <div>
                     <span class="eyebrow">Compose</span>
