@@ -141,6 +141,30 @@ final class Docker
         ];
     }
 
+    /** Return one no-stream resource sample for running containers. */
+    public function stats(): array
+    {
+        $result = Command::run($this->binary, ['stats', '--no-stream', '--format', '{{json .}}'], null, 12);
+        if ($result['exitCode'] !== 0 || trim($result['stdout']) === '') return [];
+        $stats = [];
+        foreach (preg_split('/\\R/', trim($result['stdout'])) ?: [] as $line) {
+            $raw = json_decode(trim($line), true);
+            if (!is_array($raw)) continue;
+            $stats[] = [
+                'id' => (string) ($raw['ID'] ?? ''),
+                'name' => (string) ($raw['Name'] ?? ''),
+                'cpuPercent' => $this->percentNumber((string) ($raw['CPUPerc'] ?? '0')),
+                'memoryPercent' => $this->percentNumber((string) ($raw['MemPerc'] ?? '0')),
+                'memoryUsage' => (string) ($raw['MemUsage'] ?? ''),
+                'netIO' => (string) ($raw['NetIO'] ?? ''),
+                'blockIO' => (string) ($raw['BlockIO'] ?? ''),
+                'pids' => (int) ($raw['PIDs'] ?? 0),
+            ];
+        }
+        usort($stats, static fn(array $a, array $b): int => $b['memoryPercent'] <=> $a['memoryPercent']);
+        return $stats;
+    }
+
     public function start(string $identifier): array { return $this->containerAction('start', $identifier); }
     public function stop(string $identifier): array { return $this->containerAction('stop', $identifier); }
     public function restart(string $identifier): array { return $this->containerAction('restart', $identifier); }
@@ -176,6 +200,11 @@ final class Docker
         if (!is_array($labels)) return null;
         $project = trim((string) ($labels['com.docker.compose.project'] ?? ''));
         return $project !== '' ? $project : null;
+    }
+
+    private function percentNumber(string $value): float
+    {
+        return max(0.0, (float) rtrim(trim($value), "% \\t\\n\\r\\0\\x0B"));
     }
 
     private function parseLabels(string $labels): array
