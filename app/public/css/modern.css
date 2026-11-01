@@ -62,3 +62,5 @@
 .app-shell .stack-actions{gap:8px;flex-wrap:wrap}
 .app-shell .stack-actions .button{white-space:nowrap}
 @media(max-width:700px){.modern-page-action{align-items:flex-start;flex-direction:column}#resources>label{margin-top:10px}}
+
+.console-top-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}.console-top-nav a{font-size:12px;color:#a9c4df;padding:8px 10px;border-radius:8px}.console-top-nav a:hover{color:#fff;background:#1d4062}@media(max-width:950px){.console-top-nav{order:3;width:100%;justify-content:center}.app-shell .topbar:has(.console-top-nav){height:auto;min-height:70px;flex-wrap:wrap;padding:12px}}
