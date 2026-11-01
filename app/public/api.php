@@ -79,6 +79,10 @@ try {
                 'containers' => $docker['available'] ? $dockerClient->containers() : [],
             ], $docker['available'] ? 200 : 503);
 
+        case 'stats':
+            if (!$dockerClient->available()) respond(['ok' => false, 'error' => 'Docker unavailable'], 503);
+            respond(['ok' => true, 'stats' => $dockerClient->stats()]);
+
         case 'stacks':
             $docker = $dockerClient->info();
             $containers = $docker['available'] ? $dockerClient->containers() : [];
