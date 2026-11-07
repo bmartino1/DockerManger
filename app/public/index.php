@@ -55,8 +55,12 @@ if ($selectedStackName !== '') {
     } else {
         $composeText = $composeClient->read($selectedStackName);
         $envText = $composeClient->readEnv($selectedStackName);
+        $serviceLabels = $composeClient->serviceWebUiLabels($selectedStackName);
         foreach ($selected['containers'] as &$serviceContainer) {
-            $serviceContainer['webUiLinks'] = $webUiSettings->links($serviceContainer);
+            $service = (string)($serviceContainer['labels']['com.docker.compose.service'] ?? '');
+            $labels = $serviceLabels !== null ? ($serviceLabels[$service] ?? []) : null;
+            $serviceContainer['webUiFromCompose'] = $labels !== null && trim((string)($labels['com.dockermanger.webui'] ?? '')) !== '';
+            $serviceContainer['webUiUrl'] = $webUiSettings->url($serviceContainer, $labels);
         }
         unset($serviceContainer);
         $stackLogs = $docker['available']
@@ -96,7 +100,13 @@ if ($selectedContainerName !== '') {
             $containerDetails = null;
             $containerLogs = ['output' => ''];
         } else {
-            $selectedContainer['webUiLinks'] = $webUiSettings->links($selectedContainer);
+            $project = Docker::composeProject($selectedContainer);
+            $stackConfig = $project !== null && $composeClient->stack($project) !== null
+                ? $composeClient->serviceWebUiLabels($project) : null;
+            $service = (string)($selectedContainer['labels']['com.docker.compose.service'] ?? '');
+            $labels = $stackConfig !== null ? ($stackConfig[$service] ?? []) : null;
+            $selectedContainer['webUiFromCompose'] = $labels !== null && trim((string)($labels['com.dockermanger.webui'] ?? '')) !== '';
+            $selectedContainer['webUiUrl'] = $webUiSettings->url($selectedContainer, $labels);
             $containerDetails = $dockerClient->inspect($selectedContainer['id']);
             $containerLogs = $dockerClient->logs($selectedContainer['id'], 250);
         }
@@ -114,9 +124,18 @@ $invalidStacks = count(array_filter($stacks, static fn(array $s): bool => empty(
 $view = trim((string) ($_GET['view'] ?? 'dashboard'));
 if ($view === 'apps') {
     $managedProjects = array_column($stacks, 'name');
+    $composeWebUi = [];
+    foreach ($stacks as $appStack) {
+        $composeWebUi[$appStack['name']] = $composeClient->serviceWebUiLabels($appStack['name']);
+    }
     foreach ($containers as &$appContainer) {
         $appContainer['project'] = Docker::composeProject($appContainer);
-        $appContainer['webUiLinks'] = $webUiSettings->links($appContainer);
+        $project = $appContainer['project'];
+        $service = (string)($appContainer['labels']['com.docker.compose.service'] ?? '');
+        $labels = $project !== null && array_key_exists($project, $composeWebUi)
+            && $composeWebUi[$project] !== null
+            ? ($composeWebUi[$project][$service] ?? []) : null;
+        $appContainer['webUiUrl'] = $webUiSettings->url($appContainer, $labels);
     }
     unset($appContainer);
     require dirname(__DIR__) . '/templates/home.php';
