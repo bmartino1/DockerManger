@@ -611,6 +611,8 @@ install -d -m 0755 \
     "$APP_DST" \
     "$TERMINAL_DST" \
     "$DATA_DIR/auth" \
+    "$DATA_DIR/config" \
+    "$DATA_DIR/docker-cli" \
     "$DATA_DIR/certs" \
     "$DATA_DIR/ssh" \
     "$DATA_DIR/compose_stacks" \
@@ -740,6 +742,26 @@ if ! runuser -u www-data -- test -w "$DATA_DIR/auth"; then
     die "$DATA_DIR/auth is not writable by www-data; account setup cannot succeed."
 fi
 
+# Application-owned settings and Docker CLI state must be writable by the
+# PHP-FPM worker; the /data root and sensitive auth/SSH/cert files stay protected.
+# Preserve existing settings on every repair/update.
+for writable_dir in "$DATA_DIR/config" "$DATA_DIR/docker-cli"; do
+    chown www-data:www-data "$writable_dir"
+    chmod 0700 "$writable_dir"
+    runuser -u www-data -- test -x "$writable_dir" &&
+    runuser -u www-data -- test -w "$writable_dir" ||
+        die "Native PHP user cannot write $writable_dir."
+done
+
+# An older/manual installation may have created the WebUI JSON as root.
+# Repair only that settings file, without recursively modifying /data.
+if [[ -f "$DATA_DIR/config/webui.json" ]]; then
+    [[ ! -L "$DATA_DIR/config/webui.json" ]] ||
+        die "Refusing symlinked DockerManger WebUI settings file."
+    chown www-data:www-data "$DATA_DIR/config/webui.json"
+    chmod 0600 "$DATA_DIR/config/webui.json"
+fi
+
 chmod 700 \
     "$DATA_DIR/ssh"
 
@@ -806,8 +828,11 @@ install \
     "$PHP_INI_SRC" \
     "/etc/php/${PHP_VERSION}/cli/conf.d/99-dockermanger.ini"
 
+# Keep Docker CLI/BuildKit settings away from the non-writable /var/www
+# home of www-data. DOCKER_CONFIG is honored by docker, compose, and buildx.
 printf \
-    '[www]\nclear_env = no\n' \
+    '[www]\nclear_env = no\nenv[DOCKER_CONFIG] = %s\n' \
+    "$DATA_DIR/docker-cli" \
     > "$PHP_FPM_OVERRIDE"
 
 
