@@ -252,6 +252,13 @@ final class Docker
         return array_values($volumes);
     }
 
+    /** Create a named Docker local-driver volume without browser-selected flags. */
+    public function createVolume(string $name): array
+    {
+        $name = $this->assertVolumeName($name);
+        return Command::run($this->binary, ['volume', 'create', '--driver', 'local', $name], null, 120);
+    }
+
     /** No force removal: Docker will also refuse volumes referenced by containers. */
     public function removeVolume(string $name): array
     {
