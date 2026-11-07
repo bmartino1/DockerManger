@@ -144,6 +144,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_26.x -o /tmp/nodesource.sh && \
     bash /tmp/nodesource.sh && \
     rm -f /tmp/nodesource.sh && \
     apt-get install -y --no-install-recommends nodejs && \
+    npm install -g npm@12.2.2 --no-audit --no-fund && \
     node --version && npm --version && \
     rm -rf /var/lib/apt/lists/*
 
@@ -285,7 +286,10 @@ COPY container/terminal/server.js /opt/dockermanger-terminal/server.js
 COPY container/terminal/composerize.js /opt/dockermanger-terminal/composerize.js
 RUN cd /opt/dockermanger-terminal && \
     npm install --omit=dev --no-audit --no-fund && \
+    npm ls core-js && \
+    node -e "if(require('core-js/package.json').version !== '3.51.0') process.exit(1)" && \
     node -e "for(const m of ['@xterm/xterm','composerize','node-pty','ws']) require.resolve(m); require('node-pty')" && \
+    node composerize.js "$(printf 'docker run -d --name example -p 8088:80 nginx:alpine' | base64 -w0)" | grep -q 'nginx:alpine' && \
     mkdir -p /var/www/dockermanger/public/vendor/xterm && \
     cp node_modules/@xterm/xterm/lib/xterm.js /var/www/dockermanger/public/vendor/xterm/xterm.js && \
     cp node_modules/@xterm/xterm/css/xterm.css /var/www/dockermanger/public/vendor/xterm/xterm.css
