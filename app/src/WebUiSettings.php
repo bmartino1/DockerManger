@@ -58,6 +58,52 @@ final class WebUiSettings
         return ['ok' => true, 'url' => $url];
     }
 
+    /** Discover validated shortcuts from Compose service labels plus saved per-app overrides. */
+    public function links(array $container): array
+    {
+        $links = [];
+        foreach (($container['labels'] ?? []) as $key => $value) {
+            if ($key !== 'com.dockermanger.webui' && !preg_match('/^com\\.dockermanger\\.webui\\.[A-Za-z0-9_-]+$/', (string)$key)) continue;
+            try {
+                $url = self::validateUrl(trim((string)$value));
+                $label = $key === 'com.dockermanger.webui' ? 'WebUI' : substr((string)$key, strlen('com.dockermanger.webui.'));
+                $links[$label] = $url;
+            } catch (InvalidArgumentException) { /* Ignore unsafe or malformed label URLs. */ }
+        }
+        $base = $this->appKey($container);
+        foreach ($this->read() as $key => $value) {
+            if ($key !== $base && !str_starts_with((string)$key, $base . ':')) continue;
+            $label = $key === $base ? 'WebUI' : substr((string)$key, strlen($base) + 1);
+            if (!is_string($value) || !preg_match('/^(WebUI|[A-Za-z0-9_-]{1,48})$/', $label)) continue;
+            try { $links[$label] = self::validateUrl($value); }
+            catch (InvalidArgumentException) { /* Ignore stale invalid stored URLs. */ }
+        }
+        return $links;
+    }
+
+    /** A blank URL removes only the selected override and restores any Compose label. */
+    public function saveApp(array $container, string $url, string $label = 'WebUI'): array
+    {
+        if (!preg_match('/^(WebUI|[A-Za-z0-9_-]{1,48})$/', $label)) {
+            throw new InvalidArgumentException('Invalid WebUI shortcut name.');
+        }
+        $key = $this->appKey($container) . ($label === 'WebUI' ? '' : ':' . $label);
+        return $this->save($key, $url);
+    }
+
+    private function appKey(array $container): string
+    {
+        $project = Docker::composeProject($container);
+        $service = trim((string)($container['labels']['com.docker.compose.service'] ?? ''));
+        $key = $project !== null && $service !== ''
+            ? 'app:' . $project . ':' . $service
+            : 'app:container:' . (string)($container['name'] ?? '');
+        if (strlen($key) > 200 || !preg_match('/^app:[A-Za-z0-9_.:-]+$/', $key)) {
+            throw new InvalidArgumentException('Invalid app identity.');
+        }
+        return $key;
+    }
+
     private function read(): array
     {
         if (!is_file(self::FILE)) return [];
@@ -77,7 +123,7 @@ final class WebUiSettings
 
     private function validateStack(string $name): string
     {
-        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/', $name) || $name === '.' || $name === '..') {
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,250}$/', $name) || $name === '.' || $name === '..') {
             throw new InvalidArgumentException('Invalid stack name.');
         }
         return $name;
