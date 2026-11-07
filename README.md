@@ -191,7 +191,8 @@ Current behavior includes:
 -   Docker Engine connectivity and Docker client/server version
     reporting.
 -   Container discovery using `docker ps -a`.
--   Docker-managed volume inventory with container associations and safe removal;\n    unused anonymous-volume prune and separately confirmed all-unused prune.\n-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
+-   Docker-managed volume inventory with container associations and safe removal;
+    unused anonymous-volume prune and separately confirmed all-unused prune.\n-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
     dangling/unused image cleanup, builder-cache cleanup, and confirmed system prune.
 -   Container state, image, ports, Compose association, networks,
     mounts, and volumes.
@@ -212,7 +213,8 @@ Read-only API resources include:
 ``` text
 GET /api.php?resource=system
 GET /api.php?resource=containers
-GET /api.php?resource=images\nGET /api.php?resource=volumes
+GET /api.php?resource=images
+GET /api.php?resource=volumes
 GET /api.php?resource=stacks
 GET /api.php?resource=stats
 ```
