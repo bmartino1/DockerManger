@@ -9,8 +9,25 @@
 
 ## Screenshots
 
-[![DockerManger Dashboard](https://github.com/user-attachments/assets/1958d81e-1c6d-4db3-a154-6a52ce06b8fa)](https://github.com/bmartino1/DockerManger)
-[![DockerManger Apps](https://github.com/user-attachments/assets/4c4ea066-9d1d-4cb1-b430-a9345768a436)](https://github.com/bmartino1/DockerManger)
+<img width="1708" height="998" alt="Screenshot 2026-11-01 150627" src="https://github.com/user-attachments/assets/1958d81e-1c6d-4db3-a154-6a52ce06b8fa" />
+
+<img width="1712" height="959" alt="Screenshot 2026-11-01 150646" src="https://github.com/user-attachments/assets/d7ea34da-8aca-4b3c-a7d7-7feb93c8760f" />
+
+<img width="1706" height="877" alt="image" src="https://github.com/user-attachments/assets/e4819e10-a517-4eb9-b35d-ac9aee01c5fe" />
+
+<img width="1703" height="1051" alt="image" src="https://github.com/user-attachments/assets/f487ea66-8471-420a-9fc7-496b358e3edc" />
+
+<img width="1709" height="636" alt="image" src="https://github.com/user-attachments/assets/4c4ea066-9d1d-4cb1-b430-a9345768a436" />
+<img width="1704" height="648" alt="image" src="https://github.com/user-attachments/assets/310f68a1-d3db-4f35-a11a-fdd9bd2556f9" />
+
+
+<img width="1704" height="440" alt="image" src="https://github.com/user-attachments/assets/2f63d346-0940-47bd-9554-01439588be91" />
+
+<img width="1702" height="1156" alt="image" src="https://github.com/user-attachments/assets/d58dde63-ac57-4260-a7ec-c67052441014" />
+
+<img width="1697" height="1091" alt="image" src="https://github.com/user-attachments/assets/a86b4cef-b9fa-494c-a1cd-df9d704221f6" />
+
+<img width="1693" height="392" alt="image" src="https://github.com/user-attachments/assets/d5fb9788-ec21-4090-9343-69e6111d7fd0" />
 
 ## Docker Hub images
 
