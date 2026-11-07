@@ -56,7 +56,7 @@
     if (webUiEditor) webUiEditor.addEventListener('submit', event => {
         event.preventDefault();
         const url = webUiEditor.elements.webui_url.value.trim();
-        if (url && !/^https?:\\/\\//i.test(url)) {
+        if (url && !(url.toLowerCase().startsWith('http://') || url.toLowerCase().startsWith('https://'))) {
             if (actionResult) { actionResult.hidden = false; actionResult.textContent = 'Use an http:// or https:// WebUI URL.'; }
             return;
         }
