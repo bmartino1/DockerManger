@@ -52,6 +52,17 @@
         post({action:'stack-env-save', stack:envEditor.dataset.stack, env:envEditor.elements.env.value, csrf_token:envEditor.dataset.csrf}, actionResult);
     });
 
+    const webUiEditor = document.getElementById('webui-editor');
+    if (webUiEditor) webUiEditor.addEventListener('submit', event => {
+        event.preventDefault();
+        const url = webUiEditor.elements.webui_url.value.trim();
+        if (url && !/^https?:\\/\\//i.test(url)) {
+            if (actionResult) { actionResult.hidden = false; actionResult.textContent = 'Use an http:// or https:// WebUI URL.'; }
+            return;
+        }
+        post({action:'stack-webui-save', stack:webUiEditor.dataset.stack, webui_url:url, csrf_token:webUiEditor.dataset.csrf}, actionResult);
+    });
+
     const composerizeForm = document.getElementById('composerize-form');
     const composerizeResult = document.getElementById('composerize-result');
     if (composerizeForm) composerizeForm.addEventListener('submit', async event => {
