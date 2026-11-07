@@ -93,10 +93,10 @@ if ($selectedContainerName !== '') {
         if ($selectedContainer === null) {
             http_response_code(404);
             $pageError = 'Container not found.';
-            $selectedContainer['webUiLinks'] = $webUiSettings->links($selectedContainer);
             $containerDetails = null;
             $containerLogs = ['output' => ''];
         } else {
+            $selectedContainer['webUiLinks'] = $webUiSettings->links($selectedContainer);
             $containerDetails = $dockerClient->inspect($selectedContainer['id']);
             $containerLogs = $dockerClient->logs($selectedContainer['id'], 250);
         }
