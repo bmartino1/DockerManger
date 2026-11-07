@@ -160,6 +160,70 @@ final class Docker
         return $records;
     }
 
+    /** Return local Docker images with conservative usage information. */
+    public function images(): array
+    {
+        $result = Command::run($this->binary, ['image', 'ls', '-a', '--no-trunc', '--format', '{{json .}}'], null, 15);
+        if ($result['exitCode'] !== 0 || trim($result['stdout']) === '') return [];
+
+        $used = [];
+        $containers = Command::run($this->binary, ['ps', '-a', '--no-trunc', '--format', '{{.ImageID}}'], null, 10);
+        if ($containers['exitCode'] === 0) {
+            foreach (preg_split('/\\R/', trim($containers['stdout'])) ?: [] as $id) {
+                $id = trim($id);
+                if ($id !== '') $used[$id] = ($used[$id] ?? 0) + 1;
+            }
+        }
+
+        $images = [];
+        foreach (preg_split('/\\R/', trim($result['stdout'])) ?: [] as $line) {
+            $raw = json_decode($line, true);
+            if (!is_array($raw)) continue;
+            $id = (string) ($raw['ID'] ?? '');
+            $images[] = [
+                'id' => $id,
+                'repository' => (string) ($raw['Repository'] ?? ''),
+                'tag' => (string) ($raw['Tag'] ?? ''),
+                'createdSince' => (string) ($raw['CreatedSince'] ?? ''),
+                'createdAt' => (string) ($raw['CreatedAt'] ?? ''),
+                'size' => (string) ($raw['Size'] ?? ''),
+                'containers' => (int) ($used[$id] ?? 0),
+                'dangling' => (($raw['Repository'] ?? '') === '<none>' || ($raw['Tag'] ?? '') === '<none>'),
+            ];
+        }
+        usort($images, static fn(array $a, array $b): int => strcasecmp($a['repository'] . ':' . $a['tag'], $b['repository'] . ':' . $b['tag']));
+        return $images;
+    }
+
+    public function pullImage(string $reference): array
+    {
+        $reference = $this->assertImageReference($reference);
+        return Command::run($this->binary, ['pull', $reference], null, 900);
+    }
+
+    public function removeImage(string $identifier): array
+    {
+        $identifier = $this->assertImageIdentifier($identifier);
+        return Command::run($this->binary, ['image', 'rm', $identifier], null, 120);
+    }
+
+    public function pruneImages(bool $all = false): array
+    {
+        $args = ['image', 'prune', '-f'];
+        if ($all) $args[] = '-a';
+        return Command::run($this->binary, $args, null, 300);
+    }
+
+    public function pruneBuilderCache(): array
+    {
+        return Command::run($this->binary, ['builder', 'prune', '-f'], null, 300);
+    }
+
+    public function systemPrune(): array
+    {
+        return Command::run($this->binary, ['system', 'prune', '-f'], null, 300);
+    }
+
     public function start(string $identifier): array { return $this->containerAction('start', $identifier); }
     public function stop(string $identifier): array { return $this->containerAction('stop', $identifier); }
     public function restart(string $identifier): array { return $this->containerAction('restart', $identifier); }
@@ -186,6 +250,27 @@ final class Docker
             throw new InvalidArgumentException('Invalid container identifier.');
         }
         return $identifier;
+    }
+
+    private function assertImageIdentifier(string $identifier): string
+    {
+        $identifier = trim($identifier);
+        if (!preg_match('/^(?:sha256:)?[a-f0-9]{12,64}$/i', $identifier)) {
+            throw new InvalidArgumentException('Invalid image identifier.');
+        }
+        return $identifier;
+    }
+
+    private function assertImageReference(string $reference): string
+    {
+        $reference = trim($reference);
+        if ($reference === '' || strlen($reference) > 255 || preg_match('/\\s/', $reference) || str_starts_with($reference, '-')) {
+            throw new InvalidArgumentException('Invalid image reference.');
+        }
+        if (!preg_match('#^[A-Za-z0-9][A-Za-z0-9._/:@-]*$#', $reference)) {
+            throw new InvalidArgumentException('Invalid image reference.');
+        }
+        return $reference;
     }
 
     /** Compose project labels are how DockerManger associates containers to stacks. */
