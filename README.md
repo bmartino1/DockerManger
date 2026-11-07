@@ -603,3 +603,5 @@ shortcut labels are **not displayed**: the UI deliberately offers only a single
 WebUI per app. Existing named shortcuts stored in `webui.json` are left untouched
 for safety but ignored. Each service in a multi-container stack may have its
 own different single WebUI URL.
+
+On the stack details page, each configured WebUI row includes an **Edit** button. For manually saved URLs, Edit selects the app and focuses its URL field. For Compose-labeled URLs, Edit focuses the corresponding service's Compose label in the editor because the label is authoritative. Apps without a URL can be selected in the dropdown to add one.
