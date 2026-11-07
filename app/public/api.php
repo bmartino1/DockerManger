@@ -10,6 +10,7 @@ use DockerManger\Command;
 use DockerManger\Docker;
 use DockerManger\Stack;
 use DockerManger\SystemInfo;
+use DockerManger\WebUiSettings;
 
 /*
  * Narrow JSON control plane.
@@ -24,6 +25,7 @@ header('Cache-Control: no-store');
 $dockerClient = new Docker();
 $composeClient = new Compose();
 $systemClient = new SystemInfo();
+$webUiSettings = new WebUiSettings();
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -55,7 +57,9 @@ try {
             'system-prune' => $dockerClient->systemPrune(),
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
             'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
-            'stack-webui-save' => $composeClient->saveWebUiUrl($stack, (string) ($_POST['webui_url'] ?? '')),
+            'stack-webui-save' => $composeClient->stack($stack) !== null
+                ? $webUiSettings->save($stack, (string) ($_POST['webui_url'] ?? ''))
+                : throw new InvalidArgumentException('Compose stack not found.'),
             'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
             'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? ''), (string) ($_POST['env'] ?? '')),
             default => throw new InvalidArgumentException('Unknown action.'),
