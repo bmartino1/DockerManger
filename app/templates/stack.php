@@ -171,7 +171,11 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <?php else: ?><p>Deploy this stack to create its containers; WebUI labels can be read from the saved Compose file once an app exists.</p><?php endif; ?>
                     <?php foreach ($selected['containers'] as $app): ?>
                     <?php if ($app['webUiUrl'] !== ''): ?>
-                    <div class="webui-app-links"><strong><?= $escape($app['name']) ?></strong> <a class="button button-secondary" href="<?= $escape($app['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a></div>
+                    <div class="webui-app-links">
+                        <strong><?= $escape($app['name']) ?></strong>
+                        <a class="button button-secondary" href="<?= $escape($app['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a>
+                        <button type="button" class="button button-secondary" data-edit-webui data-container="<?= $escape($app['name']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>">Edit</button>
+                    </div>
                     <?php endif; ?>
                     <?php endforeach; ?>
                 </section>
