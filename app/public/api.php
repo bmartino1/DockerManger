@@ -40,12 +40,19 @@ try {
             'stack-stop' => $composeClient->stop($stack),
             'stack-restart' => $composeClient->restart($stack),
             'stack-update' => $composeClient->update($stack),
+            'stack-pull' => $composeClient->pull($stack),
             'stack-down' => $composeClient->down($stack),
             'stack-delete' => $composeClient->delete($stack),
             'container-start' => $dockerClient->start($container),
             'container-stop' => $dockerClient->stop($container),
             'container-restart' => $dockerClient->restart($container),
             'container-kill' => $dockerClient->kill($container),
+            'image-pull' => $dockerClient->pullImage((string) ($_POST['image'] ?? '')),
+            'image-remove' => $dockerClient->removeImage((string) ($_POST['image'] ?? '')),
+            'image-prune-dangling' => $dockerClient->pruneImages(false),
+            'image-prune-unused' => $dockerClient->pruneImages(true),
+            'builder-prune' => $dockerClient->pruneBuilderCache(),
+            'system-prune' => $dockerClient->systemPrune(),
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
             'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
             'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
@@ -70,6 +77,14 @@ try {
                 'docker' => $dockerClient->info(),
                 'composeStorage' => $composeClient->storageStatus(),
             ]);
+
+        case 'images':
+            $docker = $dockerClient->info();
+            respond([
+                'ok' => $docker['available'],
+                'docker' => $docker,
+                'images' => $docker['available'] ? $dockerClient->images() : [],
+            ], $docker['available'] ? 200 : 503);
 
         case 'containers':
             $docker = $dockerClient->info();
