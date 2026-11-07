@@ -157,7 +157,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         <label for="webui-app-select">App in this stack</label>
                         <select id="webui-app-select" name="container">
                             <?php foreach ($selected['containers'] as $app): ?>
-                            <option value="<?= $escape($app['name']) ?>" data-url="<?= $escape($app['webUiUrl']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>"><?= $escape($app['name']) ?></option>
+                            <option value="<?= $escape($app['name']) ?>" data-url="<?= $escape($app['webUiUrl']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>" data-service="<?= $escape($app['labels']['com.docker.compose.service'] ?? '') ?>"><?= $escape($app['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                         <label for="webui-url">WebUI URL (optional)</label>
