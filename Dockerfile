@@ -203,12 +203,18 @@ RUN mkdir -p \
         /var/www/dockermanger \
         /opt/stacks \
         /data \
+        /data/config \
+        /data/docker-cli \
         /run/php \
         /etc/service/nginx \
         /etc/service/php-fpm \
         /var/www/acme-challenge && \
     rm -f /etc/nginx/sites-enabled/default
 
+
+# Docker CLI state belongs to the persistent data mount, not /var/www/.docker.
+# The entrypoint repairs ownership after any host bind mount is attached.
+ENV DOCKER_CONFIG=/data/docker-cli
 
 # ============================================================================
 # Nginx Configuration
