@@ -86,6 +86,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <button class="button button-secondary stack-action" data-action="stack-stop">Stop</button>
                     <button class="button button-secondary stack-action" data-action="stack-restart">Restart</button>
                     <button class="button stack-action" data-action="stack-update">Update</button>
+                    <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
                     <button class="button button-danger stack-action" data-action="stack-down">Down</button>
                     <button class="button button-danger stack-action" data-action="stack-delete">Down &amp; Delete</button>
                 </section>
@@ -147,6 +148,20 @@ $stateLabel = static fn(string $state): string => match ($state) {
                         </form>
                     </section>
                 </div>
+
+                <section class="panel webui-panel">
+                    <div class="panel-heading"><div><span class="eyebrow">Stack shortcut</span><h2>WebUI</h2></div><span class="count-badge">Optional</span></div>
+                    <p class="panel-description">Set a browser URL for this application, for example <code>http://192.168.1.50:8080</code> or <code>https://app.example.com</code>. Saved as <code>WEBUI_URL</code> in this stack's <code>.env</code>; it does not change Compose ports or restart containers.</p>
+                    <form id="webui-editor" data-stack="<?= $escape($selected['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
+                        <label for="webui-url">WebUI URL</label>
+                        <div class="webui-editor-row">
+                            <input type="url" id="webui-url" name="webui_url" value="<?= $escape($webUiUrl ?? '') ?>" placeholder="https://app.example.com" autocomplete="url" maxlength="2048">
+                            <button class="button" type="submit">Save WebUI</button>
+                            <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
+                        </div>
+                        <small class="muted-cell">Leave blank and save to remove the shortcut. Changes appear on the Apps page after saving.</small>
+                    </form>
+                </section>
 
                 <section class="panel env-panel">
                     <div class="panel-heading"><div><span class="eyebrow">Environment</span><h2>.env</h2></div><span class="count-badge">Stack file</span></div>
