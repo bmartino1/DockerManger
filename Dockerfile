@@ -279,7 +279,7 @@ COPY container/terminal/server.js /opt/dockermanger-terminal/server.js
 COPY container/terminal/composerize.js /opt/dockermanger-terminal/composerize.js
 RUN cd /opt/dockermanger-terminal && \
     npm install --omit=dev --no-audit --no-fund && \
-    node -e "for(const m of ['@xterm/xterm','composerize','node-pty','ws']) require(m)" && \
+    node -e "for(const m of ['@xterm/xterm','composerize','node-pty','ws']) require.resolve(m); require('node-pty')" && \
     mkdir -p /var/www/dockermanger/public/vendor/xterm && \
     cp node_modules/@xterm/xterm/lib/xterm.js /var/www/dockermanger/public/vendor/xterm/xterm.js && \
     cp node_modules/@xterm/xterm/css/xterm.css /var/www/dockermanger/public/vendor/xterm/xterm.css
