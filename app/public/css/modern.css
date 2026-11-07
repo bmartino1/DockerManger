@@ -104,3 +104,24 @@
 .modern-card .modern-card-main:hover b{text-decoration:underline}
 .modern-card .modern-webui-button{font-size:12px;padding:9px 12px;width:100%;text-decoration:none;color:#d4eaff!important}
 .modern-card:has(.modern-webui-button){min-height:180px}
+
+/* Volume management follows Images styling but emphasizes irreversible data loss. */
+.volume-manager .modern-page-action>div>p{margin:6px 0 0;color:var(--dm-muted)}
+.volume-manager .modern-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.volume-manager .modern-page-action>div>p.muted-cell{margin:6px 0 12px}
+.volume-manager .volume-table td,.volume-manager .volume-table th{vertical-align:middle}
+.volume-manager .volume-table td:first-child{overflow-wrap:anywhere;white-space:normal}
+.volume-manager .volume-table .volume-mount{max-width:390px;white-space:normal;overflow-wrap:anywhere}
+.volume-manager .volume-table .volume-mount code{white-space:normal;overflow-wrap:anywhere}
+.volume-manager .volume-table td:nth-child(5){white-space:normal;overflow-wrap:anywhere}
+.volume-manager .volume-table .button-danger,.modern-shell .volume-manager .button-danger{background:#8c3244;border-color:#a94759;color:#fff}
+.volume-manager .volume-table button:disabled{opacity:.4;cursor:not-allowed}
+.volume-manager .operation-output{white-space:pre-wrap;max-height:340px;overflow:auto;margin-top:18px}
+@media(max-width:750px){.volume-manager .modern-stats{grid-template-columns:1fr}}
+
+/* Create Stack is a Stacks subaction rather than part of the Images group. */
+.app-shell .dm-primary-nav .dashboard-stack-shortcut{margin:2px 8px 12px 19px}
+/* Keep the Console menu in sync with sidebar routes without crowding buttons. */
+.console-top-nav{flex-wrap:wrap;justify-content:flex-end}
+.console-top-nav a{white-space:nowrap}
+@media(max-width:1150px){.console-top-nav{order:3;width:100%;justify-content:center}}
