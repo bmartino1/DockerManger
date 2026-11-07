@@ -263,8 +263,9 @@ DockerManger/
 
 ## Volume management
 
-**Volumes** is a separate primary navigation page. It lists Docker-managed
-volumes, driver, creation timestamp, mountpoint, and existing container
+**Volumes** is a separate primary navigation page. It can create named volumes
+using Docker's local driver and lists Docker-managed volumes, driver, creation
+timestamp, mountpoint, and existing container
 references (including stopped containers). It does not manage bind mounts
 or delete host directories.
 
