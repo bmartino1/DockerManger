@@ -38,7 +38,7 @@ final class Auth
     public static function minimumPasswordLength(): int
     {
         $value = getenv('DOCKERMANGER_MIN_PASSWORD_LENGTH');
-        if ($value === false || !preg_match('/^[0-9]+$/', $value)) return 12;
+        if ($value === false || !preg_match('/^[0-9]+$/', $value)) return 8;
         return max(8, min(128, (int)$value));
     }
 
