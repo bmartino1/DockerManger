@@ -53,6 +53,7 @@ if ($selectedStackName !== '') {
     } else {
         $composeText = $composeClient->read($selectedStackName);
         $envText = $composeClient->readEnv($selectedStackName);
+        $webUiUrl = $composeClient->webUiUrl($selectedStackName);
         $stackLogs = $docker['available']
             ? $composeClient->logs($selectedStackName, 250)
             : ['output' => 'Docker Engine unavailable.'];
@@ -106,6 +107,10 @@ $invalidStacks = count(array_filter($stacks, static fn(array $s): bool => empty(
 
 $view = trim((string) ($_GET['view'] ?? 'dashboard'));
 if ($view === 'apps') {
+    foreach ($stacks as &$appStack) {
+        $appStack['webUiUrl'] = $composeClient->webUiUrl((string) $appStack['name']);
+    }
+    unset($appStack);
     require dirname(__DIR__) . '/templates/home.php';
     exit;
 }
