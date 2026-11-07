@@ -259,6 +259,26 @@ DockerManger/
 └── README.md
 ```
 
+## Stack WebUI shortcuts
+
+Each managed Compose stack can have an optional one-click WebUI shortcut.
+Open **Stacks → select stack → WebUI**, enter a full `http://` or
+`https://` URL, then select **Save WebUI**. The link also appears as an
+**Open WebUI** button on that stack's card under **Apps**.
+
+The shortcut is stored in the stack's conventional `.env` file:
+
+```dotenv
+WEBUI_URL=http://192.168.1.50:8080
+```
+
+You can edit this value manually using the stack's **.env** editor as well.
+An empty value removes the shortcut. Only HTTP and HTTPS URLs are allowed;
+browser shortcuts open in a new tab. Saving the shortcut does not publish
+ports, proxy traffic, update or restart the stack. Use a hostname/IP address
+that is reachable **from your browser**, not a Docker-only service name.
+Keep the URL free of credentials and sensitive query parameters.
+
 ## Persistent data
 
 DockerManger keeps runtime state beneath `/data`. It currently has no
