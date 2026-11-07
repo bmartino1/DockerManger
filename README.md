@@ -29,6 +29,8 @@ source of truth beneath the configured stack directory.
 <img width="1703" height="1051" alt="image" src="https://github.com/user-attachments/assets/f487ea66-8471-420a-9fc7-496b358e3edc" />
 
 <img width="1709" height="636" alt="image" src="https://github.com/user-attachments/assets/4c4ea066-9d1d-4cb1-b430-a9345768a436" />
+<img width="1704" height="648" alt="image" src="https://github.com/user-attachments/assets/310f68a1-d3db-4f35-a11a-fdd9bd2556f9" />
+
 
 <img width="1704" height="440" alt="image" src="https://github.com/user-attachments/assets/2f63d346-0940-47bd-9554-01439588be91" />
 
