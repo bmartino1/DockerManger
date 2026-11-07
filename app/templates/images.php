@@ -3,7 +3,7 @@ declare(strict_types=1);
 $e=static fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico" sizes="any"><title>Images · DockerManger</title><link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/modern.css"></head><body>
-<div class="modern-shell"><aside class="modern-nav"><h2>DockerManger</h2><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a class="active" href="/?view=images">▤ Images</a><a href="/?view=apps#resources">⌁ Resources</a></aside>
+<div class="modern-shell"><aside class="modern-nav"><h2>DockerManger</h2><a href="/">⌂ Dashboard</a><a href="/?view=apps">▦ Apps</a><a href="/?view=apps#stacks">▦ Stacks</a><a class="active" href="/?view=images">▤ Images</a><a href="/?view=volumes">▤ Volumes</a><a href="/?view=apps#resources">⌁ Resources</a></aside>
 <main class="modern-content"><header><strong>Images</strong><div class="modern-top-actions"><a class="button button-secondary" href="/console.php?target=local">Console</a><form action="/logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= $e(csrf_token()) ?>"><button class="button button-secondary">Sign out</button></form></div></header>
 <section class="modern-view active image-manager" data-csrf="<?= $e(csrf_token()) ?>">
 <div class="modern-page-action"><div><h1>Image Management</h1><p>Pull, update and clean Docker images and build cache.</p></div><button class="button button-secondary" id="refresh-images">Refresh</button></div>
