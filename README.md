@@ -51,9 +51,10 @@ its administrator account. The username field is prefilled with `admin`, but
 
 - Usernames must be 3–32 characters, start with a letter, and contain only
   letters, numbers, `_`, or `-`.
-- The default minimum password length is 12 characters. Configure
-  `DOCKERMANGER_MIN_PASSWORD_LENGTH=12` in `dockerenvironment.env` (supported
-  minimum range: 8–128).
+- The default minimum password length is **8 characters**. Docker deployments can
+  configure `DOCKERMANGER_MIN_PASSWORD_LENGTH=8` in `dockerenvironment.env`;
+  the native host installer prompts for the same value (8–128). The saved
+  native selection is applied to PHP-FPM for first-time administrator setup.
 - After setup, sign in at `/login.php`; use **Sign out** to end the session.
 - The account is stored as a password hash in `/data/auth/admin.json`. Keep
   `/data` persistent and protect its contents. No application database is required.
