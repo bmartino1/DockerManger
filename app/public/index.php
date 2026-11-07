@@ -116,6 +116,11 @@ if ($view === 'apps') {
     require dirname(__DIR__) . '/templates/home.php';
     exit;
 }
+if ($view === 'volumes') {
+    $volumes = $docker['available'] ? $dockerClient->volumes() : [];
+    require dirname(__DIR__) . '/templates/volumes.php';
+    exit;
+}
 if ($view === 'images') {
     $images = $docker['available'] ? $dockerClient->images() : [];
     require dirname(__DIR__) . '/templates/images.php';
