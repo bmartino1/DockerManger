@@ -150,38 +150,30 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 </div>
 
                 <section class="panel webui-panel">
-                    <div class="panel-heading"><div><span class="eyebrow">Service shortcuts</span><h2>App WebUIs</h2></div></div>
-                    <p class="panel-description">Choose a container and shortcut. Compose labels <code>com.dockermanger.webui</code> and <code>com.dockermanger.webui.NAME</code> prefill URLs after deployment. Saving changes only DockerManger settings, not Compose.</p>
+                    <div class="panel-heading"><div><span class="eyebrow">App settings</span><h2>Open WebUI</h2></div><span class="count-badge">Optional</span></div>
+                    <p class="panel-description">Select an app to view its single optional WebUI. The saved Compose label <code>com.dockermanger.webui</code> is the source of truth when present. Save and validate Compose changes to update the URL shown here; deploy the stack separately to apply Docker changes.</p>
                     <?php if ($selected['containers']): ?>
                     <form class="app-webui-editor" data-csrf="<?= $escape(csrf_token()) ?>">
                         <label for="webui-app-select">App in this stack</label>
                         <select id="webui-app-select" name="container">
                             <?php foreach ($selected['containers'] as $app): ?>
-                            <option value="<?= $escape($app['name']) ?>" data-links="<?= $escape(json_encode($app['webUiLinks'], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"><?= $escape($app['name']) ?></option>
+                            <option value="<?= $escape($app['name']) ?>" data-url="<?= $escape($app['webUiUrl']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>"><?= $escape($app['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <label for="webui-link-select">Shortcut</label>
-                        <select id="webui-link-select" name="webui_label"><option value="WebUI">WebUI (primary)</option></select>
-                        <label for="webui-url">WebUI URL</label>
+                        <label for="webui-url">WebUI URL (optional)</label>
                         <div class="webui-editor-row">
-                            <input id="webui-url" type="url" name="webui_url" placeholder="https://app.example.com" maxlength="2048">
+                            <input id="webui-url" type="url" name="webui_url" placeholder="http://192.168.2.27:8081" maxlength="2048">
                             <button type="submit" class="button">Save WebUI</button>
+                            <button type="button" class="button button-secondary" data-clear-webui>Remove WebUI</button>
                         </div>
-                        <small class="muted-cell">To add another link, select “Add shortcut”, give it a name, and save. Blank URL removes only the saved override; Compose labels remain defaults.</small>
-                        <label for="webui-new-label">New shortcut name (letters, numbers, - or _)</label>
-                        <input id="webui-new-label" name="new_label" maxlength="48" placeholder="admin" disabled>
-                        <div class="webui-shortcut-links">
-                        <?php foreach ($selected['containers'] as $app): ?>
-                            <div class="webui-app-links" data-app="<?= $escape($app['name']) ?>">
-                                <strong><?= $escape($app['name']) ?></strong>
-                                <?php foreach ($app['webUiLinks'] as $label => $url): ?>
-                                <a class="button button-secondary" href="<?= $escape($url) ?>" target="_blank" rel="noopener noreferrer">↗ <?= $escape($label) ?></a>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endforeach; ?>
-                        </div>
+                        <small class="muted-cell" data-webui-help>Blank means the app has no WebUI. For a Compose-labeled app, edit or remove the label in Compose and select Validate &amp; Save.</small>
                     </form>
-                    <?php else: ?><p>Deploy the stack to create containers and read their service labels.</p><?php endif; ?>
+                    <?php else: ?><p>Deploy this stack to create its containers; WebUI labels can be read from the saved Compose file once an app exists.</p><?php endif; ?>
+                    <?php foreach ($selected['containers'] as $app): ?>
+                    <?php if ($app['webUiUrl'] !== ''): ?>
+                    <div class="webui-app-links"><strong><?= $escape($app['name']) ?></strong> <a class="button button-secondary" href="<?= $escape($app['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a></div>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </section>
 
                 <section class="panel env-panel">
