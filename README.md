@@ -180,7 +180,7 @@ troubleshooting guide.
 The current navigation is intentionally small: **Dashboard** (default landing
 page), **Apps** (cards, filtering, third-party discovery and contextual display
 settings), **Stacks** (Compose project management and creation), and
-**Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
+**Images** (local image inventory, pulls, stack image updates and cleanup), and **Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
 A top-right **Console** button provides terminal access. The Dashboard retains
 Docker host/runtime versions (including PHP, Node.js and npm), container
 inventory, ports, ownership, and mount details. Standalone containers remain
@@ -191,6 +191,8 @@ Current behavior includes:
 -   Docker Engine connectivity and Docker client/server version
     reporting.
 -   Container discovery using `docker ps -a`.
+-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
+    dangling/unused image cleanup, builder-cache cleanup, and confirmed system prune.
 -   Container state, image, ports, Compose association, networks,
     mounts, and volumes.
 -   Compose stack discovery and validation.
@@ -210,6 +212,7 @@ Read-only API resources include:
 ``` text
 GET /api.php?resource=system
 GET /api.php?resource=containers
+GET /api.php?resource=images
 GET /api.php?resource=stacks
 GET /api.php?resource=stats
 ```
