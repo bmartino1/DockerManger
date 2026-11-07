@@ -103,6 +103,61 @@ final class Compose
         return ['ok'=>true,'error'=>null];
     }
 
+    /**
+     * Optional browser shortcut stored as WEBUI_URL in the stack's .env.
+     * This is UI metadata, not a Docker port discovery or proxy.
+     */
+    public function webUiUrl(string $name): string
+    {
+        $env = $this->readEnv($name);
+        $url = '';
+        foreach (preg_split('/\\R/', $env) ?: [] as $line) {
+            if (!preg_match('/^\\s*(?:export\\s+)?WEBUI_URL\\s*=\\s*(.*?)\\s*$/', $line, $match)) continue;
+            $url = trim($match[1]);
+            if (strlen($url) >= 2 && (($url[0] === '"' && substr($url, -1) === '"') || ($url[0] === "'" && substr($url, -1) === "'"))) {
+                $url = substr($url, 1, -1);
+            }
+        }
+        try {
+            return $url === '' ? '' : $this->assertWebUiUrl($url);
+        } catch (InvalidArgumentException) {
+            return '';
+        }
+    }
+
+    public function saveWebUiUrl(string $name, string $url): array
+    {
+        $url = trim($url);
+        if ($url !== '') $url = $this->assertWebUiUrl($url);
+        $stack = $this->requireStack($name);
+        $envFile = $stack['path'] . '/.env';
+        if (is_link($envFile)) throw new RuntimeException('Cannot edit a symlinked stack .env file.');
+        $env = $this->readEnv($name);
+        $lines = preg_split('/\\R/', $env) ?: [];
+        $filtered = array_values(array_filter($lines, static fn(string $line): bool =>
+            !preg_match('/^\\s*(?:export\\s+)?WEBUI_URL\\s*=/', $line)
+        ));
+        // Preserve all other environment entries without rewriting their values.
+        $newEnv = rtrim(implode("\n", $filtered), "\r\n");
+        if ($url !== '') $newEnv .= ($newEnv !== '' ? "\n" : '') . 'WEBUI_URL=' . $url;
+        if ($newEnv !== '') $newEnv .= "\n";
+        return $this->saveEnv($name, $newEnv);
+    }
+
+    private function assertWebUiUrl(string $url): string
+    {
+        if (strlen($url) > 2048 || preg_match('/[\\x00-\\x20\\x7f]/', $url)) {
+            throw new InvalidArgumentException('WebUI URL must not contain whitespace or control characters.');
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts) || !in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])
+            || preg_match('/["\'\\\\]/', $url)) {
+            throw new InvalidArgumentException('Enter a valid http:// or https:// WebUI URL without credentials.');
+        }
+        return $url;
+    }
+
     /** Validate a temporary Compose file before replacing the live file. */
     public function save(string $name, string $contents): array
     {
