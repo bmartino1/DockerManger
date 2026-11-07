@@ -136,6 +136,7 @@ DEF_INSTALL_DOCKER=true
 DEF_INSTALL_SSHD=true
 DEF_ENABLE_CONSOLE=false
 DEF_MANAGE_STACK_PERMS=true
+DEF_MIN_PASSWORD_LENGTH=8
 
 
 ###############################################################################
@@ -160,6 +161,7 @@ INSTALL_DOCKER="${SAVED_INSTALL_DOCKER:-$DEF_INSTALL_DOCKER}"
 INSTALL_SSHD="${SAVED_INSTALL_SSHD:-$DEF_INSTALL_SSHD}"
 ENABLE_CONSOLE="${SAVED_ENABLE_CONSOLE:-$DEF_ENABLE_CONSOLE}"
 MANAGE_STACK_PERMS="${SAVED_MANAGE_STACK_PERMS:-$DEF_MANAGE_STACK_PERMS}"
+MIN_PASSWORD_LENGTH="${SAVED_MIN_PASSWORD_LENGTH:-$DEF_MIN_PASSWORD_LENGTH}"
 
 
 ###############################################################################
@@ -254,6 +256,21 @@ if [[ "${DOCKERMANGER_RECONFIGURE:-1}" != 0 ]]; then
         "Timezone" \
         "$TIMEZONE"
 
+    # Administrator password minimum (same 8–128 range as the Docker env).
+    while true; do
+        prompt_value \
+            MIN_PASSWORD_LENGTH \
+            "Minimum administrator password length (8–128)" \
+            "$MIN_PASSWORD_LENGTH"
+        if [[ "$MIN_PASSWORD_LENGTH" =~ ^[0-9]+$ ]] &&
+           (( ${#MIN_PASSWORD_LENGTH} <= 3 )) &&
+           (( 10#$MIN_PASSWORD_LENGTH >= 8 && 10#$MIN_PASSWORD_LENGTH <= 128 )); then
+            MIN_PASSWORD_LENGTH="$((10#$MIN_PASSWORD_LENGTH))"
+            break
+        fi
+        echo "Please enter a whole number from 8 to 128."
+    done
+
     prompt_yes_no \
         INSTALL_DOCKER \
         "Install/repair Docker Engine + Compose v2" \
@@ -330,6 +347,12 @@ valid_bool "$ENABLE_CONSOLE" || \
 valid_bool "$MANAGE_STACK_PERMS" || \
     die "MANAGE_STACK_PERMS must be true/false."
 
+[[ "$MIN_PASSWORD_LENGTH" =~ ^[0-9]+$ ]] &&
+    (( ${#MIN_PASSWORD_LENGTH} <= 3 )) &&
+    (( 10#$MIN_PASSWORD_LENGTH >= 8 && 10#$MIN_PASSWORD_LENGTH <= 128 )) ||
+    die "MIN_PASSWORD_LENGTH must be an integer from 8 to 128."
+MIN_PASSWORD_LENGTH="$((10#$MIN_PASSWORD_LENGTH))"
+
 
 ###############################################################################
 # Save installer configuration
@@ -361,6 +384,9 @@ install -d -m 0755 "$CONFIG_DIR"
 
     printf 'SAVED_MANAGE_STACK_PERMS=%q\n' \
         "$MANAGE_STACK_PERMS"
+
+    printf 'SAVED_MIN_PASSWORD_LENGTH=%q\n' \
+        "$MIN_PASSWORD_LENGTH"
 
 } > "$TMP_DIR/installer.env"
 
@@ -845,8 +871,8 @@ install \
 # Keep Docker CLI/BuildKit settings away from the non-writable /var/www
 # home of www-data. DOCKER_CONFIG is honored by docker, compose, and buildx.
 printf \
-    '[www]\nclear_env = no\nenv[DOCKER_CONFIG] = %s\n' \
-    "$DATA_DIR/docker-cli" \
+    '[www]\nclear_env = no\nenv[DOCKER_CONFIG] = %s\nenv[DOCKERMANGER_MIN_PASSWORD_LENGTH] = %s\n' \
+    "$DATA_DIR/docker-cli" "$MIN_PASSWORD_LENGTH" \
     > "$PHP_FPM_OVERRIDE"
 
 
@@ -1411,6 +1437,7 @@ Settings    : $INSTALLER_CONF
 
 PHP-FPM     : $PHP_FPM_SERVICE
 Console     : $ENABLE_CONSOLE
+Password min: $MIN_PASSWORD_LENGTH characters
 Architecture: $(dpkg --print-architecture)
 
 Native UI   : DockerManger local console
