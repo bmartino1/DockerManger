@@ -73,6 +73,55 @@
         appSelect?.addEventListener('change', refresh);
         refresh();
 
+        // Edit selects the corresponding app. Labeled URLs are edited in the
+        // Compose editor, while manual URLs are edited in this form.
+        editor.closest('.webui-panel')?.querySelectorAll('[data-edit-webui]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (appSelect && button.dataset.container) {
+                    appSelect.value = button.dataset.container;
+                    refresh();
+                }
+                const composeControlled = (appSelect?.selectedOptions[0]?.dataset.compose || editor.dataset.compose || button.dataset.compose) === 'yes';
+                if (!composeControlled) {
+                    urlInput.scrollIntoView({behavior:'smooth',block:'center'});
+                    urlInput.focus({preventScroll:true});
+                    urlInput.select();
+                    return;
+                }
+                const composeTextArea = document.querySelector('#compose-editor textarea[name="compose"]');
+                if (!composeTextArea) {
+                    if (help) help.textContent = 'This URL belongs to a Compose label. Open the stack Compose editor to change it.';
+                    return;
+                }
+                composeTextArea.scrollIntoView({behavior:'smooth',block:'center'});
+                composeTextArea.focus({preventScroll:true});
+                const content = composeTextArea.value;
+                const service = appSelect?.value || '';
+                const lines = content.split('\n');
+                const serviceName = appSelect?.selectedOptions[0]?.dataset.service || '';
+                const target = serviceName || service;
+                let serviceStart = -1;
+                let serviceIndent = 0;
+                for (let i=0;i<lines.length;i++) {
+                    const match = lines[i].match(/^(\s*)([^#\s][^:]*):\s*(?:#.*)?$/);
+                    if (match && match[2].trim() === target) { serviceStart = i; serviceIndent = match[1].length; break; }
+                }
+                let labelLine = -1;
+                if (serviceStart >= 0) {
+                    for (let i=serviceStart+1;i<lines.length;i++) {
+                        const indent = (lines[i].match(/^\s*/) || [''])[0].length;
+                        if (lines[i].trim() && indent <= serviceIndent) break;
+                        if (lines[i].includes('com.dockermanger.webui:')) { labelLine=i; break; }
+                    }
+                }
+                if (labelLine < 0) labelLine = lines.findIndex(line=>line.includes('com.dockermanger.webui:'));
+                if (labelLine >= 0) {
+                    const position = lines.slice(0,labelLine).reduce((total,line)=>total+line.length+1,0);
+                    composeTextArea.setSelectionRange(position,position+lines[labelLine].length);
+                }
+            });
+        });
+
         const submitUrl = async url => {
             if (url && !/^https?:\/\//i.test(url)) {
                 if (actionResult) { actionResult.hidden=false; actionResult.textContent='Use an http:// or https:// URL.'; }
