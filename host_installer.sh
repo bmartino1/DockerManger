@@ -770,6 +770,10 @@ chmod 700 \
 # Terminal helper
 ###############################################################################
 
+log "Testing pinned npm 12.2.2 on the experimental branch"
+npm install -g npm@12.2.2 --no-audit --no-fund
+[[ "$(npm --version)" == "12.2.2" ]] || die "Expected npm 12.2.2 for experimental test."
+
 log "Refreshing terminal helper"
 
 install \
@@ -798,6 +802,12 @@ install \
     # A successful npm exit alone does not guarantee a functional PTY binding.
     # node-pty is explicitly approved in package.json allowScripts.
     node -e "require('node-pty'); require('ws'); require('composerize')"
+    npm ls core-js
+    node -e "const p=require.resolve('core-js/package.json',{paths:[require.resolve('composerize')]}); const v=require(p).version; console.log('Composerize core-js version:',v); if(v!=='3.51.0') process.exit(1)"
+    node "$TERMINAL_DST/composerize.js" "$(printf 'docker run -d --name example -p 8088:80 nginx:alpine' | base64 -w0)" | grep -q 'nginx:alpine' ||
+        die "Experimental Composerize conversion failed with core-js 3."
+    log "Composerize conversion passed with core-js 3."
+
 )
 
 install \
