@@ -18,7 +18,7 @@ source of truth beneath the configured stack directory.
 
 ---
 
-# WebUI Example
+# WebUI screenshots
 
 <img width="1708" height="998" alt="Screenshot 2026-11-01 150627" src="https://github.com/user-attachments/assets/1958d81e-1c6d-4db3-a154-6a52ce06b8fa" />
 
@@ -77,11 +77,19 @@ The `amd64` and `arm64` tags are single-platform alternatives.
 | `amd64` | `linux/amd64` | Explicit x86-64 image |
 | `arm64` | `linux/arm64` | Explicit ARM64 image, such as 64-bit Raspberry Pi |
 
-The three tags were published and the multi-platform index was verified
-on **November 1, 2026**. The verified `latest` digest at publication was
-`sha256:45a3863a518c1393df23fc19081a3010cb2b7b0af3ccc367398347947f92b3f4`.
-Tags are mutable; pin this digest for reproducible deployments, or follow
-`latest` to receive subsequent releases.
+The three tags were rebuilt and published on **November 7, 2026** after
+native-host testing and multi-architecture Docker Buildx smoke tests.
+The published OCI image index for `latest` was verified to include both
+`linux/amd64` and `linux/arm64`.
+
+| Tag | Digest at publication |
+| --- | --- |
+| `latest` | `sha256:189a00982520803a03ac74512879cceaa123048942bec249e3323240dbfc4f3a` |
+| `amd64` | `sha256:5d9072b840102cb576a35a7088f81fa4f78a7ac6b9ecb603ed658982ec6f98f0` |
+| `arm64` | `sha256:71fd6e0eab3c66af9869b35a660eb40fa05f56d0e8e26108cb56330b50ba1f62` |
+
+Tags are mutable: pin the index digest for reproducible multi-platform
+deployments, or follow `latest` to receive subsequent releases.
 For an existing deployment that uses `image: bmmbmm01/dockermanger:latest`:
 
 ```bash
@@ -184,10 +192,11 @@ troubleshooting guide.
 
 ## Web UI and features
 
-The current navigation is intentionally small: **Dashboard** (default landing
-page), **Apps** (cards, filtering, third-party discovery and contextual display
-settings), **Stacks** (Compose project management and creation), and
-**Images** (local image inventory, pulls, stack image updates and cleanup), **Volumes** (Docker-managed volume inventory and guarded cleanup), and **Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
+The primary navigation includes **Dashboard** (default landing page),
+**Apps** (cards, filtering and third-party discovery), **Stacks** (Compose
+project management and creation), **Images** (inventory, pulls, updates and
+cleanup), **Volumes** (Docker-managed storage and guarded cleanup), and
+**Resources** (on-demand CPU/RAM usage with optional auto-refresh).
 A top-right **Console** button provides terminal access. The Dashboard retains
 Docker host/runtime versions (including PHP, Node.js and npm), container
 inventory, ports, ownership, and mount details. Standalone containers remain
@@ -199,7 +208,8 @@ Current behavior includes:
     reporting.
 -   Container discovery using `docker ps -a`.
 -   Docker-managed volume inventory with container associations and safe removal;
-    unused anonymous-volume prune and separately confirmed all-unused prune.\n-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
+    unused anonymous-volume prune and separately confirmed all-unused prune.
+-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
     dangling/unused image cleanup, builder-cache cleanup, and confirmed system prune.
 -   Container state, image, ports, Compose association, networks,
     mounts, and volumes.
@@ -209,6 +219,8 @@ Current behavior includes:
 -   Controlled stack/container lifecycle actions and logs.
 -   Compose creation/editing with validation.
 -   Per-stack `.env` creation/editing.
+-   Optional per-stack Open WebUI links stored in DockerManger's own
+    persistent settings, also available from Apps cards.
 -   Docker-run-to-Compose conversion using Composerize.
 -   Standalone/third-party container detail pages.
 -   xterm.js console support through the Node/node-pty terminal helper.
@@ -284,7 +296,7 @@ irrecoverable without backups. Two cleanup levels are available:
 - **Prune unused anonymous volumes** uses `docker volume prune -f`.
 - **Prune ALL unused volumes**, in the Danger Zone, uses
   `docker volume prune -a -f`, including named volumes. It requires
-  a confirmation phrase.
+  a clear OK/Cancel confirmation.
 
 Never run a volume prune until backups and application data retention are
 understood. DockerManger's **Images → system prune** continues to omit
@@ -322,6 +334,9 @@ Expected persistent data includes:
 /data/
 ├── auth/
 │   └── admin.json
+├── config/
+│   └── webui.json
+├── docker-cli/
 ├── certs/
 │   ├── dockermanger.crt
 │   └── dockermanger.key
@@ -367,8 +382,9 @@ The current Raspberry Pi target is a 64-bit OS. `arm/v7` is not a
 primary target.
 
 The current images were built from the same GitHub source checkout with
-Docker Buildx on an amd64 Debian/Proxmox LXC. ARM64 execution used
-PVE-host `binfmt_misc`/QEMU. Both locally built images passed basic runtime
+Docker Buildx on an amd64 Debian/Proxmox LXC. ARM64 emulation was confirmed
+by an `aarch64` Alpine runtime test in that LXC. Both locally built images
+passed basic runtime
 smoke tests (PHP, Node.js, npm, Docker CLI, Compose, and `node-pty`/WebSocket
 module loading) before publication. This is **not** a substitute for a full
 browser/SSH integration test of each published image.
@@ -428,8 +444,12 @@ records may still be visible separately.
 
 The browser terminal depends on `node-pty`, a native Node.js addon.
 The terminal helper's `package.json` explicitly approves its install
-script while denying the obsolete transitive `core-js` postinstall.
-Both native installs and container builds verify that `node-pty` loads.
+script while denying the `core-js` postinstall. Composerize 1.7.6 resolves
+`core-js@3.51.0` through an npm dependency override; the older v2 package
+is no longer part of the tested dependency tree. Both native installs and
+container builds verify that `node-pty` loads and run a sample
+Docker Run → Compose conversion. Node.js 26 and npm 12.2.2 were used in the
+published multi-architecture build.
 
 Both deployment models use `/data/config` for DockerManger WebUI
 shortcuts and `/data/docker-cli` as `DOCKER_CONFIG` for Docker/BuildKit
@@ -532,7 +552,7 @@ This README is the canonical text for both GitHub and the Docker Hub repository 
 - Source: https://github.com/bmartino1/DockerManger
 - Published images: https://hub.docker.com/r/bmmbmm01/dockermanger
 - Current published tags: `latest` (multi-platform), `amd64`, `arm64`
-- Node.js terminal uses xterm.js, node-pty and WebSockets. Docker Run → Compose conversion uses Composerize; its current dependency tree includes deprecated `core-js@2`, which is tracked as a future dependency-maintenance task.
+- Node.js terminal uses xterm.js, node-pty and WebSockets. Docker Run → Compose conversion uses Composerize 1.7.6 with the tested `core-js@3.51.0` override.
 
 ## License
 
