@@ -24,15 +24,19 @@ source of truth beneath the configured stack directory.
 
 <img width="1712" height="959" alt="Screenshot 2026-11-01 150646" src="https://github.com/user-attachments/assets/d7ea34da-8aca-4b3c-a7d7-7feb93c8760f" />
 
-<img width="1715" height="993" alt="Screenshot 2026-11-01 150701" src="https://github.com/user-attachments/assets/e8c10328-83b9-4b39-a740-fa1051198459" />
+<img width="1706" height="877" alt="image" src="https://github.com/user-attachments/assets/e4819e10-a517-4eb9-b35d-ac9aee01c5fe" />
 
-<img width="1706" height="1094" alt="Screenshot 2026-11-01 150714" src="https://github.com/user-attachments/assets/71108eda-ef66-4060-9522-ddb4f93cb062" />
+<img width="1703" height="1051" alt="image" src="https://github.com/user-attachments/assets/f487ea66-8471-420a-9fc7-496b358e3edc" />
 
-<img width="1698" height="881" alt="Screenshot 2026-11-01 150725" src="https://github.com/user-attachments/assets/f8f9a460-11e8-4ce7-928f-6e1b0bf692bc" />
+<img width="1709" height="636" alt="image" src="https://github.com/user-attachments/assets/4c4ea066-9d1d-4cb1-b430-a9345768a436" />
 
-<img width="1701" height="481" alt="Screenshot 2026-11-01 150739" src="https://github.com/user-attachments/assets/3d857c37-7c74-4cc1-a1f0-0db216631447" />
+<img width="1704" height="440" alt="image" src="https://github.com/user-attachments/assets/2f63d346-0940-47bd-9554-01439588be91" />
 
-<img width="1713" height="583" alt="Screenshot 2026-11-01 150750" src="https://github.com/user-attachments/assets/89aae8bc-6d82-4369-9f59-89afbc59e14d" />
+<img width="1702" height="1156" alt="image" src="https://github.com/user-attachments/assets/d58dde63-ac57-4260-a7ec-c67052441014" />
+
+<img width="1697" height="1091" alt="image" src="https://github.com/user-attachments/assets/a86b4cef-b9fa-494c-a1cd-df9d704221f6" />
+
+<img width="1693" height="392" alt="image" src="https://github.com/user-attachments/assets/d5fb9788-ec21-4090-9343-69e6111d7fd0" />
 
 
 ---
