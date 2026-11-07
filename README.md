@@ -417,6 +417,22 @@ Verify that the final index lists both `linux/amd64` and `linux/arm64`.
 Keep the Docker Hub repository to the three user-facing tags; registry digest
 records may still be visible separately.
 
+## npm script approvals and writable CLI storage
+
+The browser terminal depends on `node-pty`, a native Node.js addon.
+The terminal helper's `package.json` explicitly approves its install
+script while denying the obsolete transitive `core-js` postinstall.
+Both native installs and container builds verify that `node-pty` loads.
+
+Both deployment models use `/data/config` for DockerManger WebUI
+shortcuts and `/data/docker-cli` as `DOCKER_CONFIG` for Docker/BuildKit
+commands invoked by PHP-FPM. Only those application subdirectories
+receive PHP worker write access; `/data` as a whole is not opened up.
+
+If a native `git pull` aborts due to locally edited installer files,
+review and stash those edits before rerunning the installer. Running
+the old installer after an aborted pull does not install the update.
+
 ## Console model
 
 DockerManger keeps interactive PTY traffic separate from PHP's
