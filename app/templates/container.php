@@ -75,6 +75,15 @@ $isDockerMangerSystem = $selectedContainer && $selectedContainer['name'] === 'do
     </section>
     <div id="action-result" class="operation-output" hidden></div>
 
+    <section class="panel webui-panel"><div class="panel-heading"><div><span class="eyebrow">Application</span><h2>WebUI shortcuts</h2></div></div>
+      <form class="app-webui-editor" data-container="<?= $escape($selectedContainer['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
+        <label>Shortcut</label><select name="webui_label"><option value="WebUI">WebUI (primary)</option><?php foreach (($selectedContainer['webUiLinks'] ?? []) as $label => $url): if ($label !== 'WebUI'): ?><option value="<?= $escape($label) ?>"><?= $escape($label) ?></option><?php endif; endforeach; ?><option value="__new">Add shortcut…</option></select>
+        <input name="new_label" placeholder="Shortcut name, e.g. admin" maxlength="48" disabled>
+        <label>WebUI URL</label><div class="webui-editor-row"><input type="url" name="webui_url" value="<?= $escape($selectedContainer['webUiLinks']['WebUI'] ?? '') ?>" placeholder="https://app.example.com" maxlength="2048"><button class="button" type="submit">Save WebUI</button></div>
+        <?php foreach (($selectedContainer['webUiLinks'] ?? []) as $label => $url): ?><a class="button button-secondary" href="<?= $escape($url) ?>" target="_blank" rel="noopener noreferrer">↗ <?= $escape($label) ?></a><?php endforeach; ?>
+      </form>
+    </section>
+
     <div class="stack-grid">
         <section class="panel">
             <div class="panel-heading"><div><span class="eyebrow">Runtime</span><h2>Container Details</h2></div></div>
