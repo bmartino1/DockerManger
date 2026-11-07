@@ -51,6 +51,9 @@ try {
             'container-kill' => $dockerClient->kill($container),
             'image-pull' => $dockerClient->pullImage((string) ($_POST['image'] ?? '')),
             'image-remove' => $dockerClient->removeImage((string) ($_POST['image'] ?? '')),
+            'volume-remove' => $dockerClient->removeVolume((string) ($_POST['volume'] ?? '')),
+            'volume-prune-anonymous' => $dockerClient->pruneVolumes(false),
+            'volume-prune-all' => $dockerClient->pruneVolumes(true),
             'image-prune-dangling' => $dockerClient->pruneImages(false),
             'image-prune-unused' => $dockerClient->pruneImages(true),
             'builder-prune' => $dockerClient->pruneBuilderCache(),
@@ -82,6 +85,10 @@ try {
                 'docker' => $dockerClient->info(),
                 'composeStorage' => $composeClient->storageStatus(),
             ]);
+
+        case 'volumes':
+            if (!$dockerClient->available()) respond(['ok' => false, 'error' => 'Docker unavailable'], 503);
+            respond(['ok' => true, 'volumes' => $dockerClient->volumes()]);
 
         case 'images':
             $docker = $dockerClient->info();
