@@ -219,8 +219,8 @@ Current behavior includes:
 -   Controlled stack/container lifecycle actions and logs.
 -   Compose creation/editing with validation.
 -   Per-stack `.env` creation/editing.
--   Optional per-stack Open WebUI links stored in DockerManger's own
-    persistent settings, also available from Apps cards.
+-   Optional per-container Open WebUI links sourced from Compose service labels
+    or DockerManger's persistent settings, also available from Apps cards.
 -   Docker-run-to-Compose conversion using Composerize.
 -   Standalone/third-party container detail pages.
 -   xterm.js console support through the Node/node-pty terminal helper.
@@ -302,26 +302,30 @@ Never run a volume prune until backups and application data retention are
 understood. DockerManger's **Images → system prune** continues to omit
 `--volumes`.
 
-## Stack WebUI shortcuts
+## Per-app WebUI behavior
 
-Each managed stack can have an optional one-click WebUI shortcut.
-Go to **Stacks → select stack → WebUI**, set an HTTP or HTTPS URL, and
-select **Save WebUI**. Once configured, an **Open WebUI** button is
-also available on the corresponding **Apps** card.
+Each container is displayed separately on **Apps**, with the name of its parent
+Compose stack. A container has **zero or one** `Open WebUI` button. It does not
+show alternative shortcuts or a placeholder button when no URL is configured.
 
-These links are **DockerManger settings**, not container labels, Docker
-environment variables or Compose interpolation. They are stored in
-`/data/config/webui.json` on the existing persistent `/data` mount.
-Nothing is written to the stack's `compose.yaml` or `.env`, and
-saving or clearing a shortcut does not restart containers.
+For managed Compose services, add an optional `com.dockermanger.webui` label
+to the corresponding **service**. The saved Compose file is authoritative
+for label-derived URLs. From **Stacks → select stack → App WebUI**, choose an
+app in the dropdown to view its URL. Labels are read from the validated Compose
+configuration; edit/remove a label and select **Validate & Save** to refresh
+the displayed URL. To apply Compose changes to Docker containers, separately
+recreate/up the stack.
 
-Only full `http://` and `https://` URLs without embedded credentials
-are accepted. The link opens in a new browser tab and must be reachable
-from the browser itself. Removing the URL clears its shortcut.
+For apps without a Compose WebUI label, you can save an optional manual URL
+in DockerManger, or use **Remove WebUI**. Manual settings persist in
+`/data/config/webui.json` without changing Compose or restarting containers.
+An explicit manual removal suppresses any stale runtime label. URLs must be
+HTTP or HTTPS without embedded credentials, and must be reachable from the
+browser.
 
-Existing deployments that previously added `WEBUI_URL` to a stack's
-`.env` can remove that old entry manually; it is no longer used by
-DockerManger for WebUI shortcuts.
+Existing stack-level shortcut records are retained in the JSON file for
+backward compatibility but no longer create a button for every app in a
+multi-container stack.
 
 ## Persistent data
 
@@ -557,3 +561,49 @@ This README is the canonical text for both GitHub and the Docker Hub repository 
 ## License
 
 See [LICENSE](https://github.com/bmartino1/DockerManger/blob/main/LICENSE).
+
+
+### Per-app Open WebUI (experimental feature branch)
+
+The **Apps** page displays each Docker container separately, with its Compose stack and
+**at most one** `Open WebUI` button. Apps without a URL have no button.
+
+Use one optional label per Compose service:
+
+```yaml
+name: nginx-multi
+services:
+  nginx-test-1:
+    image: nginx:alpine
+    ports: ["8081:80"]
+    labels:
+      com.dockermanger.webui: "http://192.168.2.27:8081"
+  nginx-test-2:
+    image: nginx:alpine
+    ports: ["8082:80"]
+    labels:
+      com.dockermanger.webui: "http://192.168.2.27:8082"
+```
+
+**Source of truth:** For managed stacks, DockerManger resolves labels from the
+**saved and validated Compose file** using `docker compose config --format json`.
+This makes edits visible without a container recreation. Saving Compose does **not**
+recreate or restart running containers; use **Up/Update** to apply changes in Docker.
+If reading the saved Compose config fails, the UI falls back to live container labels.
+
+A valid `com.dockermanger.webui` label takes precedence over manually saved settings.
+To remove a labeled WebUI, delete that label from the Compose service, then click
+**Validate & Save**. To remove a manually configured WebUI, choose its app in the
+stack selector and click **Remove WebUI**. A manually cleared app has no WebUI
+unless a Compose label explicitly defines one. Manual settings are kept in
+`/data/config/webui.json` and never rewrite Compose.
+
+The former experimental `com.dockermanger.webui.alternate` and other named
+shortcut labels are **not displayed**: the UI deliberately offers only a single
+WebUI per app. Existing named shortcuts stored in `webui.json` are left untouched
+for safety but ignored. Each service in a multi-container stack may have its
+own different single WebUI URL.
+
+On the stack details page, each configured WebUI row includes an **Edit** button. For manually saved URLs, Edit selects the app and focuses its URL field. For Compose-labeled URLs, Edit focuses the corresponding service's Compose label in the editor because the label is authoritative. Apps without a URL can be selected in the dropdown to add one.
+
+The **Stack Containers** panel displays an optional **Open WebUI** action directly beside **Console** and **Logs** for each container with a configured WebUI URL. It is hidden for containers without one. The URL follows the same per-app Compose-label/manual settings resolution as the Apps page.

@@ -86,7 +86,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <button class="button button-secondary stack-action" data-action="stack-stop">Stop</button>
                     <button class="button button-secondary stack-action" data-action="stack-restart">Restart</button>
                     <button class="button stack-action" data-action="stack-update">Update</button>
-                    <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
+
                     <button class="button button-danger stack-action" data-action="stack-down">Down</button>
                     <button class="button button-danger stack-action" data-action="stack-delete">Down &amp; Delete</button>
                 </section>
@@ -125,6 +125,9 @@ $stateLabel = static fn(string $state): string => match ($state) {
                                             <small><?= $escape($container['ports'] ?: 'No published ports') ?></small>
                                         </div>
                                         <div class="container-card-actions">
+                                            <?php if (!empty($container['webUiUrl'])): ?>
+                                                <a class="button button-secondary button-small" href="<?= $escape($container['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer" title="Open <?= $escape($container['name']) ?> WebUI">↗ Open WebUI</a>
+                                            <?php endif; ?>
                                             <a class="button button-secondary button-small" href="/console.php?container=<?= urlencode($container['name']) ?>">Console</a>
                                             <button class="button button-secondary button-small log-container" data-container="<?= $escape($container['name']) ?>">Logs</button>
                                         </div>
@@ -150,17 +153,34 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 </div>
 
                 <section class="panel webui-panel">
-                    <div class="panel-heading"><div><span class="eyebrow">Stack shortcut</span><h2>WebUI</h2></div><span class="count-badge">Optional</span></div>
-                    <p class="panel-description">Set a browser URL for this application, for example <code>http://192.168.1.50:8080</code> or <code>https://app.example.com</code>. Stored in DockerManger's own persistent settings (<code>/data/config/webui.json</code>), not in the stack's Compose file or <code>.env</code>. Saving does not restart containers.</p>
-                    <form id="webui-editor" data-stack="<?= $escape($selected['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
-                        <label for="webui-url">WebUI URL</label>
+                    <div class="panel-heading"><div><span class="eyebrow">App settings</span><h2>Open WebUI</h2></div><span class="count-badge">Optional</span></div>
+                    <p class="panel-description">Select an app to view its single optional WebUI. The saved Compose label <code>com.dockermanger.webui</code> is the source of truth when present. Save and validate Compose changes to update the URL shown here; deploy the stack separately to apply Docker changes.</p>
+                    <?php if ($selected['containers']): ?>
+                    <form class="app-webui-editor" data-csrf="<?= $escape(csrf_token()) ?>">
+                        <label for="webui-app-select">App in this stack</label>
+                        <select id="webui-app-select" name="container">
+                            <?php foreach ($selected['containers'] as $app): ?>
+                            <option value="<?= $escape($app['name']) ?>" data-url="<?= $escape($app['webUiUrl']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>" data-service="<?= $escape($app['labels']['com.docker.compose.service'] ?? '') ?>"><?= $escape($app['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label for="webui-url">WebUI URL (optional)</label>
                         <div class="webui-editor-row">
-                            <input type="url" id="webui-url" name="webui_url" value="<?= $escape($webUiUrl ?? '') ?>" placeholder="https://app.example.com" autocomplete="url" maxlength="2048">
-                            <button class="button" type="submit">Save WebUI</button>
-                            <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
+                            <input id="webui-url" type="url" name="webui_url" placeholder="http://192.168.2.27:8081" maxlength="2048">
+                            <button type="submit" class="button">Save WebUI</button>
+                            <button type="button" class="button button-secondary" data-clear-webui>Remove WebUI</button>
                         </div>
-                        <small class="muted-cell">Leave blank and save to remove the shortcut. Changes appear on the Apps page after saving.</small>
+                        <small class="muted-cell" data-webui-help>Blank means the app has no WebUI. For a Compose-labeled app, edit or remove the label in Compose and select Validate &amp; Save.</small>
                     </form>
+                    <?php else: ?><p>Deploy this stack to create its containers; WebUI labels can be read from the saved Compose file once an app exists.</p><?php endif; ?>
+                    <?php foreach ($selected['containers'] as $app): ?>
+                    <?php if ($app['webUiUrl'] !== ''): ?>
+                    <div class="webui-app-links">
+                        <strong><?= $escape($app['name']) ?></strong>
+                        <a class="button button-secondary" href="<?= $escape($app['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a>
+                        <button type="button" class="button button-secondary" data-edit-webui data-container="<?= $escape($app['name']) ?>" data-compose="<?= !empty($app['webUiFromCompose']) ? 'yes' : 'no' ?>">Edit</button>
+                    </div>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </section>
 
                 <section class="panel env-panel">

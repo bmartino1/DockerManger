@@ -61,9 +61,9 @@ try {
             'system-prune' => $dockerClient->systemPrune(),
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
             'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
-            'stack-webui-save' => $composeClient->stack($stack) !== null
-                ? $webUiSettings->save($stack, (string) ($_POST['webui_url'] ?? ''))
-                : throw new InvalidArgumentException('Compose stack not found.'),
+            'app-webui-save' => ($app = $dockerClient->container($container)) !== null
+                ? $webUiSettings->saveApp($app, (string) ($_POST['webui_url'] ?? ''))
+                : throw new InvalidArgumentException('Container not found.'),
             'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
             'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? ''), (string) ($_POST['env'] ?? '')),
             default => throw new InvalidArgumentException('Unknown action.'),

@@ -75,6 +75,19 @@ $isDockerMangerSystem = $selectedContainer && $selectedContainer['name'] === 'do
     </section>
     <div id="action-result" class="operation-output" hidden></div>
 
+    <section class="panel webui-panel">
+      <div class="panel-heading"><div><span class="eyebrow">Application</span><h2>Open WebUI</h2></div></div>
+      <form class="app-webui-editor" data-container="<?= $escape($selectedContainer['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>" data-compose="<?= !empty($selectedContainer['webUiFromCompose']) ? 'yes' : 'no' ?>">
+        <label>WebUI URL (optional)</label>
+        <div class="webui-editor-row"><input type="url" name="webui_url" value="<?= $escape($selectedContainer['webUiUrl'] ?? '') ?>" placeholder="https://app.example.com" maxlength="2048"><button class="button" type="submit">Save WebUI</button><button type="button" class="button button-secondary" data-clear-webui>Remove WebUI</button></div>
+        <small class="muted-cell" data-webui-help>Compose service labels take priority. Remove a Compose label in the stack editor to remove a labeled WebUI.</small>
+        <?php if (!empty($selectedContainer['webUiUrl'])): ?>
+        <a class="button button-secondary" href="<?= $escape($selectedContainer['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a>
+        <button type="button" class="button button-secondary" data-edit-webui data-compose="<?= !empty($selectedContainer['webUiFromCompose']) ? 'yes' : 'no' ?>">Edit</button>
+        <?php endif; ?>
+      </form>
+    </section>
+
     <div class="stack-grid">
         <section class="panel">
             <div class="panel-heading"><div><span class="eyebrow">Runtime</span><h2>Container Details</h2></div></div>

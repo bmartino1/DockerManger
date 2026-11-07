@@ -22,7 +22,7 @@ final class WebUiSettings
         return (string) ($settings[$stack] ?? '');
     }
 
-    public function save(string $stack, string $url): array
+    public function save(string $stack, string $url, bool $keepEmpty = false): array
     {
         $stack = $this->validateStack($stack);
         $url = trim($url);
@@ -41,7 +41,7 @@ final class WebUiSettings
             if (!is_array($data) || array_is_list($data) && $data !== []) {
                 throw new RuntimeException('Invalid WebUI settings file; refusing to overwrite.');
             }
-            if ($url === '') unset($data[$stack]);
+            if ($url === '' && !$keepEmpty) unset($data[$stack]);
             else $data[$stack] = $url;
             $encoded = json_encode($data === [] ? new \stdClass() : $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
             rewind($handle);
@@ -56,6 +56,55 @@ final class WebUiSettings
             fclose($handle);
         }
         return ['ok' => true, 'url' => $url];
+    }
+
+    /**
+     * Exactly one optional WebUI per app.
+     *
+     * Managed stacks use their saved Compose service labels as authoritative.
+     * A missing label in a valid Compose file means no WebUI, even if an old
+     * running container still has the label. Manual settings are for apps
+     * without a Compose WebUI label.
+     */
+    public function url(array $container, ?array $composeLabels = null): string
+    {
+        $labels = $composeLabels ?? ($container['labels'] ?? []);
+        $configured = trim((string)($labels['com.dockermanger.webui'] ?? ''));
+        if ($configured !== '') {
+            try { return self::validateUrl($configured); }
+            catch (InvalidArgumentException) { return ''; }
+        }
+
+        $settings = $this->read();
+        $key = $this->appKey($container);
+        if (array_key_exists($key, $settings)) {
+            $manual = $settings[$key];
+            if (!is_string($manual) || $manual === '') return '';
+            try { return self::validateUrl($manual); }
+            catch (InvalidArgumentException) { return ''; }
+        }
+        return '';
+    }
+
+    /** A blank URL explicitly disables the app's manually configured URL. */
+    public function saveApp(array $container, string $url): array
+    {
+        $url = trim($url);
+        // Keep an empty string as a tombstone instead of deleting the key.
+        return $this->save($this->appKey($container), $url, true);
+    }
+
+    private function appKey(array $container): string
+    {
+        $project = Docker::composeProject($container);
+        $service = trim((string)($container['labels']['com.docker.compose.service'] ?? ''));
+        $key = $project !== null && $service !== ''
+            ? 'app:' . $project . ':' . $service
+            : 'app:container:' . (string)($container['name'] ?? '');
+        if (strlen($key) > 200 || !preg_match('/^app:[A-Za-z0-9_.:-]+$/', $key)) {
+            throw new InvalidArgumentException('Invalid app identity.');
+        }
+        return $key;
     }
 
     private function read(): array
@@ -77,7 +126,7 @@ final class WebUiSettings
 
     private function validateStack(string $name): string
     {
-        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/', $name) || $name === '.' || $name === '..') {
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,250}$/', $name) || $name === '.' || $name === '..') {
             throw new InvalidArgumentException('Invalid stack name.');
         }
         return $name;

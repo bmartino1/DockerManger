@@ -52,15 +52,89 @@
         post({action:'stack-env-save', stack:envEditor.dataset.stack, env:envEditor.elements.env.value, csrf_token:envEditor.dataset.csrf}, actionResult);
     });
 
-    const webUiEditor = document.getElementById('webui-editor');
-    if (webUiEditor) webUiEditor.addEventListener('submit', event => {
-        event.preventDefault();
-        const url = webUiEditor.elements.webui_url.value.trim();
-        if (url && !(url.toLowerCase().startsWith('http://') || url.toLowerCase().startsWith('https://'))) {
-            if (actionResult) { actionResult.hidden = false; actionResult.textContent = 'Use an http:// or https:// WebUI URL.'; }
-            return;
-        }
-        post({action:'stack-webui-save', stack:webUiEditor.dataset.stack, webui_url:url, csrf_token:webUiEditor.dataset.csrf}, actionResult);
+    document.querySelectorAll('.app-webui-editor').forEach(editor => {
+        const appSelect = editor.elements.container;
+        const urlInput = editor.elements.webui_url;
+        const help = editor.querySelector('[data-webui-help]');
+        const save = editor.querySelector('[type="submit"]');
+        const remove = editor.querySelector('[data-clear-webui]');
+
+        const refresh = () => {
+            const selected = appSelect?.selectedOptions[0];
+            const fromCompose = (selected ? selected.dataset.compose : editor.dataset.compose) === 'yes';
+            if (selected) urlInput.value = selected.dataset.url || '';
+            urlInput.disabled = fromCompose;
+            if (save) save.disabled = fromCompose;
+            if (remove) remove.disabled = fromCompose;
+            if (help) help.textContent = fromCompose
+                ? 'This URL is defined by the saved Compose label. Edit/remove com.dockermanger.webui in Compose, then Validate & Save.'
+                : 'Optional manual URL. Remove WebUI clears it; the app will have no Open WebUI button.';
+        };
+        appSelect?.addEventListener('change', refresh);
+        refresh();
+
+        // Edit selects the corresponding app. Labeled URLs are edited in the
+        // Compose editor, while manual URLs are edited in this form.
+        editor.closest('.webui-panel')?.querySelectorAll('[data-edit-webui]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (appSelect && button.dataset.container) {
+                    appSelect.value = button.dataset.container;
+                    refresh();
+                }
+                const composeControlled = (appSelect?.selectedOptions[0]?.dataset.compose || editor.dataset.compose || button.dataset.compose) === 'yes';
+                if (!composeControlled) {
+                    urlInput.scrollIntoView({behavior:'smooth',block:'center'});
+                    urlInput.focus({preventScroll:true});
+                    urlInput.select();
+                    return;
+                }
+                const composeTextArea = document.querySelector('#compose-editor textarea[name="compose"]');
+                if (!composeTextArea) {
+                    if (help) help.textContent = 'This URL belongs to a Compose label. Open the stack Compose editor to change it.';
+                    return;
+                }
+                composeTextArea.scrollIntoView({behavior:'smooth',block:'center'});
+                composeTextArea.focus({preventScroll:true});
+                const content = composeTextArea.value;
+                const service = appSelect?.value || '';
+                const lines = content.split('\n');
+                const serviceName = appSelect?.selectedOptions[0]?.dataset.service || '';
+                const target = serviceName || service;
+                let serviceStart = -1;
+                let serviceIndent = 0;
+                for (let i=0;i<lines.length;i++) {
+                    const match = lines[i].match(/^(\s*)([^#\s][^:]*):\s*(?:#.*)?$/);
+                    if (match && match[2].trim() === target) { serviceStart = i; serviceIndent = match[1].length; break; }
+                }
+                let labelLine = -1;
+                if (serviceStart >= 0) {
+                    for (let i=serviceStart+1;i<lines.length;i++) {
+                        const indent = (lines[i].match(/^\s*/) || [''])[0].length;
+                        if (lines[i].trim() && indent <= serviceIndent) break;
+                        if (lines[i].includes('com.dockermanger.webui:')) { labelLine=i; break; }
+                    }
+                }
+                if (labelLine < 0) labelLine = lines.findIndex(line=>line.includes('com.dockermanger.webui:'));
+                if (labelLine >= 0) {
+                    const position = lines.slice(0,labelLine).reduce((total,line)=>total+line.length+1,0);
+                    composeTextArea.setSelectionRange(position,position+lines[labelLine].length);
+                }
+            });
+        });
+
+        const submitUrl = async url => {
+            if (url && !/^https?:\/\//i.test(url)) {
+                if (actionResult) { actionResult.hidden=false; actionResult.textContent='Use an http:// or https:// URL.'; }
+                return;
+            }
+            const container = appSelect?.value || editor.dataset.container;
+            await post({action:'app-webui-save',container,webui_url:url,csrf_token:editor.dataset.csrf},actionResult);
+        };
+        editor.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!urlInput.disabled) submitUrl(urlInput.value.trim());
+        });
+        remove?.addEventListener('click', () => { if (!urlInput.disabled) submitUrl(''); });
     });
 
     const composerizeForm = document.getElementById('composerize-form');
