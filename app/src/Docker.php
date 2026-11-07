@@ -195,6 +195,87 @@ final class Docker
         return $images;
     }
 
+    /** Docker-managed volumes only; bind mounts are never included. */
+    public function volumes(): array
+    {
+        $listed = Command::run($this->binary, ['volume', 'ls', '--format', '{{json .}}'], null, 15);
+        if ($listed['exitCode'] !== 0) throw new RuntimeException($listed['output'] ?: 'Unable to list volumes.');
+        $volumes = [];
+        foreach (preg_split('/\\R/', trim($listed['stdout'])) ?: [] as $line) {
+            $raw = json_decode($line, true);
+            if (!is_array($raw) || empty($raw['Name'])) continue;
+            $name = (string)$raw['Name'];
+            $volumes[$name] = [
+                'name' => $name,
+                'driver' => (string)($raw['Driver'] ?? ''),
+                'mountpoint' => '',
+                'createdAt' => '',
+                'labels' => (string)($raw['Labels'] ?? ''),
+                'usedBy' => [],
+            ];
+        }
+        if ($volumes === []) return [];
+
+        // Include stopped containers: a stopped container can still own its volume.
+        $ids = Command::run($this->binary, ['ps', '-aq', '--no-trunc'], null, 15);
+        if ($ids['exitCode'] !== 0) throw new RuntimeException('Unable to determine container volume usage.');
+        $containerIds = array_values(array_filter(preg_split('/\\s+/', trim($ids['stdout'])) ?: []));
+        foreach (array_chunk($containerIds, 40) as $chunk) {
+            $inspected = Command::run($this->binary, array_merge(['inspect'], $chunk), null, 30);
+            if ($inspected['exitCode'] !== 0) throw new RuntimeException('Unable to inspect volume consumers.');
+            $data = json_decode($inspected['stdout'], true);
+            if (!is_array($data)) throw new RuntimeException('Invalid Docker container inspection response.');
+            foreach ($data as $container) {
+                if (!is_array($container)) continue;
+                $name = ltrim((string)($container['Name'] ?? ''), '/');
+                foreach (($container['Mounts'] ?? []) as $mount) {
+                    if (!is_array($mount) || ($mount['Type'] ?? '') !== 'volume') continue;
+                    $volumeName = (string)($mount['Name'] ?? '');
+                    if (isset($volumes[$volumeName])) $volumes[$volumeName]['usedBy'][] = $name;
+                }
+            }
+        }
+        foreach (array_chunk(array_keys($volumes), 40) as $chunk) {
+            $inspected = Command::run($this->binary, array_merge(['volume', 'inspect'], $chunk), null, 30);
+            if ($inspected['exitCode'] !== 0) throw new RuntimeException('Unable to inspect Docker volumes.');
+            $data = json_decode($inspected['stdout'], true);
+            if (!is_array($data)) throw new RuntimeException('Invalid Docker volume inspection response.');
+            foreach ($data as $volume) {
+                if (!is_array($volume)) continue;
+                $name = (string)($volume['Name'] ?? '');
+                if (!isset($volumes[$name])) continue;
+                $volumes[$name]['mountpoint'] = (string)($volume['Mountpoint'] ?? '');
+                $volumes[$name]['createdAt'] = (string)($volume['CreatedAt'] ?? '');
+            }
+        }
+        ksort($volumes, SORT_NATURAL | SORT_FLAG_CASE);
+        return array_values($volumes);
+    }
+
+    /** No force removal: Docker will also refuse volumes referenced by containers. */
+    public function removeVolume(string $name): array
+    {
+        $name = $this->assertVolumeName($name);
+        return Command::run($this->binary, ['volume', 'rm', $name], null, 120);
+    }
+
+    /** Docker's default prune only removes unused anonymous volumes. */
+    public function pruneVolumes(bool $all = false): array
+    {
+        $args = ['volume', 'prune', '-f'];
+        if ($all) $args[] = '-a';
+        return Command::run($this->binary, $args, null, 300);
+    }
+
+    private function assertVolumeName(string $name): string
+    {
+        $name = trim($name);
+        if (strlen($name) > 255 || !preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]*$/', $name)) {
+            throw new InvalidArgumentException('Invalid Docker volume name.');
+        }
+        return $name;
+    }
+
     public function pullImage(string $reference): array
     {
         $reference = $this->assertImageReference($reference);
