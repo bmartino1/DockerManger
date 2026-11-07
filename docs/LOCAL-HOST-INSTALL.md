@@ -180,6 +180,21 @@ declaring the installation successful.
 Using `/opt/stacks` or another dedicated stack directory is simpler for
 a normal deployment, but custom absolute paths are supported.
 
+## Administrator password minimum
+
+The native host installer prompts for **Minimum administrator password length**
+(default **8**, configurable from **8 to 128**). It saves the choice as
+`SAVED_MIN_PASSWORD_LENGTH` in `/etc/dockermanger/installer.env` and passes
+`DOCKERMANGER_MIN_PASSWORD_LENGTH` into the PHP-FPM worker environment.
+The setting is also reused during unattended
+`DOCKERMANGER_RECONFIGURE=0` repairs. To change it, rerun
+`./host_installer.sh` interactively and accept the other saved defaults.
+
+This sets the minimum for **first-time administrator account creation**; it
+does not change an already-created account or its stored password hash.
+Docker deployments use the `DOCKERMANGER_MIN_PASSWORD_LENGTH` environment
+variable, with the same range and default.
+
 ## Native WebUI and Docker CLI writable state
 
 The PHP-FPM worker runs as `www-data`. Each native install/repair prepares
