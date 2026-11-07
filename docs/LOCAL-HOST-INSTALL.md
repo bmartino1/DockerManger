@@ -40,6 +40,31 @@ bash -n host_installer.sh
 Run the installer as `root`. If cloning as a normal administrator
 account, invoke it with `sudo ./host_installer.sh`.
 
+## Updating a checkout with local modifications
+
+Before rerunning the installer, ensure the source checkout successfully updates:
+
+```bash
+cd /root/DockerManger
+git status --short
+git diff -- host_installer.sh
+```
+
+If `git pull` refuses to overwrite an edited `host_installer.sh`, preserve
+that local edit before updating:
+
+```bash
+git stash push -m "Local installer edits before update" -- host_installer.sh
+git pull --ff-only origin main
+bash -n host_installer.sh
+DOCKERMANGER_RECONFIGURE=0 ./host_installer.sh
+```
+
+The stash remains available through `git stash list` for review. Do not
+blindly apply it afterward: older installer edits may conflict with the
+new permission fixes. An aborted pull followed by running the old installer
+does **not** apply the new code.
+
 ## Installer prompts
 
 The installer asks for:
@@ -250,6 +275,21 @@ To change the choice later, simply rerun:
 
 The saved value is shown as the default and can be changed at the
 prompt.
+
+## npm install scripts
+
+The terminal helper requires a compiled `node-pty` binding. The source
+`container/terminal/package.json` now explicitly approves the `node-pty`
+install script and denies the legacy `core-js` postinstall script using
+npm's `allowScripts` policy. The native installer checks that
+`node-pty`, `ws`, and `composerize` can load after npm installation.
+The Docker build uses the same package configuration rather than
+overwriting dependencies with fresh `@latest` installations.
+
+The legacy `core-js@2` dependency is still brought in by the
+Composerize dependency tree. Its obsolete postinstall is blocked rather
+than allowing all install scripts globally. A later dependency upgrade
+can remove that legacy dependency once verified.
 
 ## Native services
 
