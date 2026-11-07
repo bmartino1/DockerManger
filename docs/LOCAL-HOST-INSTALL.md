@@ -83,6 +83,8 @@ Repository checkout                  source files only
 /etc/dockermanger/installer.env      saved installer answers
 /etc/dockermanger/dockermanger.env   native runtime environment
 /data                                persistent runtime data and TLS
+/data/config/webui.json             DockerManger-only WebUI shortcuts
+/data/docker-cli                     writable Docker CLI/BuildKit config for PHP-FPM
 /opt/stacks                          default native Compose stack directory
 /etc/nginx/sites-available/
   dockermanger.conf                  generated Nginx configuration
@@ -152,6 +154,32 @@ declaring the installation successful.
 
 Using `/opt/stacks` or another dedicated stack directory is simpler for
 a normal deployment, but custom absolute paths are supported.
+
+## Native WebUI and Docker CLI writable state
+
+The PHP-FPM worker runs as `www-data`. Each native install/repair prepares
+private `www-data`-owned directories for:
+
+- `/data/config` — persisted DockerManger WebUI shortcuts
+- `/data/docker-cli` — Docker/BuildKit CLI config, selected via PHP-FPM
+  `DOCKER_CONFIG` instead of writing to `/var/www/.docker`
+
+The installer preserves existing files in both locations, repairs ownership
+of an existing `webui.json`, and verifies directory access as `www-data`.
+It does not recursively grant write access to all of `/data`.
+
+If **Save WebUI** fails with a settings-directory permission error or
+**Prune build cache** reports permission denied at `/var/www/.docker`,
+pull the latest source and rerun:
+
+```bash
+git pull origin main
+DOCKERMANGER_RECONFIGURE=0 ./host_installer.sh
+```
+
+For a manually configured shortcut, use an address reachable from the
+browser; `127.0.0.1` on a remote workstation points to that workstation,
+not the Docker host.
 
 ## HTTPS
 
