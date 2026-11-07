@@ -125,6 +125,9 @@ $stateLabel = static fn(string $state): string => match ($state) {
                                             <small><?= $escape($container['ports'] ?: 'No published ports') ?></small>
                                         </div>
                                         <div class="container-card-actions">
+                                            <?php if (!empty($container['webUiUrl'])): ?>
+                                                <a class="button button-secondary button-small" href="<?= $escape($container['webUiUrl']) ?>" target="_blank" rel="noopener noreferrer" title="Open <?= $escape($container['name']) ?> WebUI">↗ Open WebUI</a>
+                                            <?php endif; ?>
                                             <a class="button button-secondary button-small" href="/console.php?container=<?= urlencode($container['name']) ?>">Console</a>
                                             <button class="button button-secondary button-small log-container" data-container="<?= $escape($container['name']) ?>">Logs</button>
                                         </div>
