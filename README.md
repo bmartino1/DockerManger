@@ -557,3 +557,23 @@ This README is the canonical text for both GitHub and the Docker Hub repository 
 ## License
 
 See [LICENSE](https://github.com/bmartino1/DockerManger/blob/main/LICENSE).
+
+
+### Per-container WebUI links (experimental feature branch)
+
+Each Compose service may declare a default primary WebUI and any number of named shortcuts:
+
+```yaml
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    labels:
+      com.dockermanger.webui: "http://192.168.2.10:8989"
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    labels:
+      com.dockermanger.webui: "http://192.168.2.10:7878"
+      com.dockermanger.webui.external: "https://radarr.example.com"
+```
+
+Apps lists containers with their stack names and all configured WebUI shortcuts. The stack detail page offers an app dropdown and shortcut selector, including Add shortcut. Saved per-service overrides live in /data/config/webui.json; deleting an override restores a Compose label default. Existing stack-keyed settings are retained but not assigned indiscriminately to every app. Compose labels become available when the service container is created/recreated.
