@@ -180,7 +180,7 @@ troubleshooting guide.
 The current navigation is intentionally small: **Dashboard** (default landing
 page), **Apps** (cards, filtering, third-party discovery and contextual display
 settings), **Stacks** (Compose project management and creation), and
-**Images** (local image inventory, pulls, stack image updates and cleanup), and **Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
+**Images** (local image inventory, pulls, stack image updates and cleanup), **Volumes** (Docker-managed volume inventory and guarded cleanup), and **Resources** (on-demand CPU/RAM usage with optional 30-second refresh).
 A top-right **Console** button provides terminal access. The Dashboard retains
 Docker host/runtime versions (including PHP, Node.js and npm), container
 inventory, ports, ownership, and mount details. Standalone containers remain
@@ -191,7 +191,7 @@ Current behavior includes:
 -   Docker Engine connectivity and Docker client/server version
     reporting.
 -   Container discovery using `docker ps -a`.
--   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
+-   Docker-managed volume inventory with container associations and safe removal;\n    unused anonymous-volume prune and separately confirmed all-unused prune.\n-   Docker image inventory, explicit image pulls/removal, stack pull/update controls,
     dangling/unused image cleanup, builder-cache cleanup, and confirmed system prune.
 -   Container state, image, ports, Compose association, networks,
     mounts, and volumes.
@@ -212,7 +212,7 @@ Read-only API resources include:
 ``` text
 GET /api.php?resource=system
 GET /api.php?resource=containers
-GET /api.php?resource=images
+GET /api.php?resource=images\nGET /api.php?resource=volumes
 GET /api.php?resource=stacks
 GET /api.php?resource=stats
 ```
@@ -258,6 +258,27 @@ DockerManger/
 ├── LICENSE
 └── README.md
 ```
+
+## Volume management
+
+**Volumes** is a separate primary navigation page. It lists Docker-managed
+volumes, driver, creation timestamp, mountpoint, and existing container
+references (including stopped containers). It does not manage bind mounts
+or delete host directories.
+
+Individual removal runs `docker volume rm` without force, and only appears
+enabled for volumes with no current container reference. Docker independently
+checks usage again when removal is requested. Docker volume data may be
+irrecoverable without backups. Two cleanup levels are available:
+
+- **Prune unused anonymous volumes** uses `docker volume prune -f`.
+- **Prune ALL unused volumes**, in the Danger Zone, uses
+  `docker volume prune -a -f`, including named volumes. It requires
+  a confirmation phrase.
+
+Never run a volume prune until backups and application data retention are
+understood. DockerManger's **Images → system prune** continues to omit
+`--volumes`.
 
 ## Stack WebUI shortcuts
 
