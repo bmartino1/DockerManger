@@ -54,53 +54,38 @@
 
     document.querySelectorAll('.app-webui-editor').forEach(editor => {
         const appSelect = editor.elements.container;
-        const labelSelect = editor.elements.webui_label;
-        const newLabel = editor.elements.new_label;
         const urlInput = editor.elements.webui_url;
-        const linksFor = () => {
-            if (!appSelect) return null;
-            try { return JSON.parse(appSelect.selectedOptions[0]?.dataset.links || '{}'); }
-            catch { return {}; }
+        const help = editor.querySelector('[data-webui-help]');
+        const save = editor.querySelector('[type="submit"]');
+        const remove = editor.querySelector('[data-clear-webui]');
+
+        const refresh = () => {
+            const selected = appSelect?.selectedOptions[0];
+            const fromCompose = (selected ? selected.dataset.compose : editor.dataset.compose) === 'yes';
+            if (selected) urlInput.value = selected.dataset.url || '';
+            urlInput.disabled = fromCompose;
+            if (save) save.disabled = fromCompose;
+            if (remove) remove.disabled = fromCompose;
+            if (help) help.textContent = fromCompose
+                ? 'This URL is defined by the saved Compose label. Edit/remove com.dockermanger.webui in Compose, then Validate & Save.'
+                : 'Optional manual URL. Remove WebUI clears it; the app will have no Open WebUI button.';
         };
-        const refreshLabels = () => {
-            const links = linksFor();
-            if (links && labelSelect) {
-                labelSelect.innerHTML = '';
-                const labels = ['WebUI', ...Object.keys(links).filter(x => x !== 'WebUI')];
-                labels.forEach(label => {
-                    const option = document.createElement('option'); option.value=label;
-                    option.textContent = label === 'WebUI' ? 'WebUI (primary)' : label;
-                    labelSelect.appendChild(option);
-                });
-                labelSelect.add(new Option('Add shortcut…', '__new'));
-            }
-            refreshUrl();
-        };
-        const refreshUrl = () => {
-            const adding = labelSelect?.value === '__new';
-            if (newLabel) { newLabel.disabled = !adding; if (!adding) newLabel.value = ''; }
-            if (urlInput) urlInput.value = adding ? '' : (linksFor()?.[labelSelect?.value] || (appSelect ? '' : urlInput.value));
-        };
-        if (appSelect) { appSelect.addEventListener('change', refreshLabels); refreshLabels(); }
-        else {
-            const savedLinks = {};
-            for (const option of (labelSelect?.options || [])) {
-                if (option.value !== '__new' && option.value !== 'WebUI') savedLinks[option.value] = '';
-            }
-        }
-        labelSelect?.addEventListener('change', refreshUrl);
-        editor.addEventListener('submit', async event => {
-            event.preventDefault();
-            const label = labelSelect?.value === '__new' ? (newLabel?.value || '').trim() : (labelSelect?.value || 'WebUI');
-            const url = urlInput?.value.trim() || '';
-            if (!/^(WebUI|[A-Za-z0-9_-]{1,48})$/.test(label) || (url && !/^https?:\/\//i.test(url))) {
-                if (actionResult) { actionResult.hidden=false; actionResult.textContent='Enter a valid shortcut name and http(s) URL.'; }
+        appSelect?.addEventListener('change', refresh);
+        refresh();
+
+        const submitUrl = async url => {
+            if (url && !/^https?:\/\//i.test(url)) {
+                if (actionResult) { actionResult.hidden=false; actionResult.textContent='Use an http:// or https:// URL.'; }
                 return;
             }
             const container = appSelect?.value || editor.dataset.container;
-            const result = await post({action:'app-webui-save',container,webui_label:label,webui_url:url,csrf_token:editor.dataset.csrf},actionResult);
-            if (result?.ok) location.reload();
+            await post({action:'app-webui-save',container,webui_url:url,csrf_token:editor.dataset.csrf},actionResult);
+        };
+        editor.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!urlInput.disabled) submitUrl(urlInput.value.trim());
         });
+        remove?.addEventListener('click', () => { if (!urlInput.disabled) submitUrl(''); });
     });
 
     const composerizeForm = document.getElementById('composerize-form');
