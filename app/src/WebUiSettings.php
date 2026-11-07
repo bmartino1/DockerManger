@@ -22,7 +22,7 @@ final class WebUiSettings
         return (string) ($settings[$stack] ?? '');
     }
 
-    public function save(string $stack, string $url): array
+    public function save(string $stack, string $url, bool $keepEmpty = false): array
     {
         $stack = $this->validateStack($stack);
         $url = trim($url);
@@ -41,7 +41,7 @@ final class WebUiSettings
             if (!is_array($data) || array_is_list($data) && $data !== []) {
                 throw new RuntimeException('Invalid WebUI settings file; refusing to overwrite.');
             }
-            if ($url === '') unset($data[$stack]);
+            if ($url === '' && !$keepEmpty) unset($data[$stack]);
             else $data[$stack] = $url;
             $encoded = json_encode($data === [] ? new \stdClass() : $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
             rewind($handle);
@@ -58,37 +58,40 @@ final class WebUiSettings
         return ['ok' => true, 'url' => $url];
     }
 
-    /** Discover validated shortcuts from Compose service labels plus saved per-app overrides. */
-    public function links(array $container): array
+    /**
+     * Exactly one optional WebUI per app.
+     *
+     * Managed stacks use their saved Compose service labels as authoritative.
+     * A missing label in a valid Compose file means no WebUI, even if an old
+     * running container still has the label. Manual settings are for apps
+     * without a Compose WebUI label.
+     */
+    public function url(array $container, ?array $composeLabels = null): string
     {
-        $links = [];
-        foreach (($container['labels'] ?? []) as $key => $value) {
-            if ($key !== 'com.dockermanger.webui' && !preg_match('/^com\\.dockermanger\\.webui\\.[A-Za-z0-9_-]+$/', (string)$key)) continue;
-            try {
-                $url = self::validateUrl(trim((string)$value));
-                $label = $key === 'com.dockermanger.webui' ? 'WebUI' : substr((string)$key, strlen('com.dockermanger.webui.'));
-                $links[$label] = $url;
-            } catch (InvalidArgumentException) { /* Ignore unsafe or malformed label URLs. */ }
+        $labels = $composeLabels ?? ($container['labels'] ?? []);
+        $configured = trim((string)($labels['com.dockermanger.webui'] ?? ''));
+        if ($configured !== '') {
+            try { return self::validateUrl($configured); }
+            catch (InvalidArgumentException) { return ''; }
         }
-        $base = $this->appKey($container);
-        foreach ($this->read() as $key => $value) {
-            if ($key !== $base && !str_starts_with((string)$key, $base . ':')) continue;
-            $label = $key === $base ? 'WebUI' : substr((string)$key, strlen($base) + 1);
-            if (!is_string($value) || !preg_match('/^(WebUI|[A-Za-z0-9_-]{1,48})$/', $label)) continue;
-            try { $links[$label] = self::validateUrl($value); }
-            catch (InvalidArgumentException) { /* Ignore stale invalid stored URLs. */ }
+
+        $settings = $this->read();
+        $key = $this->appKey($container);
+        if (array_key_exists($key, $settings)) {
+            $manual = $settings[$key];
+            if (!is_string($manual) || $manual === '') return '';
+            try { return self::validateUrl($manual); }
+            catch (InvalidArgumentException) { return ''; }
         }
-        return $links;
+        return '';
     }
 
-    /** A blank URL removes only the selected override and restores any Compose label. */
-    public function saveApp(array $container, string $url, string $label = 'WebUI'): array
+    /** A blank URL explicitly disables the app's manually configured URL. */
+    public function saveApp(array $container, string $url): array
     {
-        if (!preg_match('/^(WebUI|[A-Za-z0-9_-]{1,48})$/', $label)) {
-            throw new InvalidArgumentException('Invalid WebUI shortcut name.');
-        }
-        $key = $this->appKey($container) . ($label === 'WebUI' ? '' : ':' . $label);
-        return $this->save($key, $url);
+        $url = trim($url);
+        // Keep an empty string as a tombstone instead of deleting the key.
+        return $this->save($this->appKey($container), $url, true);
     }
 
     private function appKey(array $container): string
