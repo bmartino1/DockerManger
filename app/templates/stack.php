@@ -86,7 +86,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
                     <button class="button button-secondary stack-action" data-action="stack-stop">Stop</button>
                     <button class="button button-secondary stack-action" data-action="stack-restart">Restart</button>
                     <button class="button stack-action" data-action="stack-update">Update</button>
-                    <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
+
                     <button class="button button-danger stack-action" data-action="stack-down">Down</button>
                     <button class="button button-danger stack-action" data-action="stack-delete">Down &amp; Delete</button>
                 </section>
@@ -150,17 +150,38 @@ $stateLabel = static fn(string $state): string => match ($state) {
                 </div>
 
                 <section class="panel webui-panel">
-                    <div class="panel-heading"><div><span class="eyebrow">Stack shortcut</span><h2>WebUI</h2></div><span class="count-badge">Optional</span></div>
-                    <p class="panel-description">Set a browser URL for this application, for example <code>http://192.168.1.50:8080</code> or <code>https://app.example.com</code>. Stored in DockerManger's own persistent settings (<code>/data/config/webui.json</code>), not in the stack's Compose file or <code>.env</code>. Saving does not restart containers.</p>
-                    <form id="webui-editor" data-stack="<?= $escape($selected['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
+                    <div class="panel-heading"><div><span class="eyebrow">Service shortcuts</span><h2>App WebUIs</h2></div></div>
+                    <p class="panel-description">Choose a container and shortcut. Compose labels <code>com.dockermanger.webui</code> and <code>com.dockermanger.webui.NAME</code> prefill URLs after deployment. Saving changes only DockerManger settings, not Compose.</p>
+                    <?php if ($selected['containers']): ?>
+                    <form class="app-webui-editor" data-csrf="<?= $escape(csrf_token()) ?>">
+                        <label for="webui-app-select">App in this stack</label>
+                        <select id="webui-app-select" name="container">
+                            <?php foreach ($selected['containers'] as $app): ?>
+                            <option value="<?= $escape($app['name']) ?>" data-links="<?= $escape(json_encode($app['webUiLinks'], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)) ?>"><?= $escape($app['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label for="webui-link-select">Shortcut</label>
+                        <select id="webui-link-select" name="webui_label"><option value="WebUI">WebUI (primary)</option></select>
                         <label for="webui-url">WebUI URL</label>
                         <div class="webui-editor-row">
-                            <input type="url" id="webui-url" name="webui_url" value="<?= $escape($webUiUrl ?? '') ?>" placeholder="https://app.example.com" autocomplete="url" maxlength="2048">
-                            <button class="button" type="submit">Save WebUI</button>
-                            <?php if (!empty($webUiUrl)): ?><a class="button button-secondary" href="<?= $escape($webUiUrl) ?>" target="_blank" rel="noopener noreferrer">↗ Open WebUI</a><?php endif; ?>
+                            <input id="webui-url" type="url" name="webui_url" placeholder="https://app.example.com" maxlength="2048">
+                            <button type="submit" class="button">Save WebUI</button>
                         </div>
-                        <small class="muted-cell">Leave blank and save to remove the shortcut. Changes appear on the Apps page after saving.</small>
+                        <small class="muted-cell">To add another link, select “Add shortcut”, give it a name, and save. Blank URL removes only the saved override; Compose labels remain defaults.</small>
+                        <label for="webui-new-label">New shortcut name (letters, numbers, - or _)</label>
+                        <input id="webui-new-label" name="new_label" maxlength="48" placeholder="admin" disabled>
+                        <div class="webui-shortcut-links">
+                        <?php foreach ($selected['containers'] as $app): ?>
+                            <div class="webui-app-links" data-app="<?= $escape($app['name']) ?>">
+                                <strong><?= $escape($app['name']) ?></strong>
+                                <?php foreach ($app['webUiLinks'] as $label => $url): ?>
+                                <a class="button button-secondary" href="<?= $escape($url) ?>" target="_blank" rel="noopener noreferrer">↗ <?= $escape($label) ?></a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+                        </div>
                     </form>
+                    <?php else: ?><p>Deploy the stack to create containers and read their service labels.</p><?php endif; ?>
                 </section>
 
                 <section class="panel env-panel">
