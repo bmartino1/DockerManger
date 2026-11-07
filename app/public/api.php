@@ -51,6 +51,7 @@ try {
             'container-kill' => $dockerClient->kill($container),
             'image-pull' => $dockerClient->pullImage((string) ($_POST['image'] ?? '')),
             'image-remove' => $dockerClient->removeImage((string) ($_POST['image'] ?? '')),
+            'volume-create' => $dockerClient->createVolume((string) ($_POST['volume'] ?? '')),
             'volume-remove' => $dockerClient->removeVolume((string) ($_POST['volume'] ?? '')),
             'volume-prune-anonymous' => $dockerClient->pruneVolumes(false),
             'volume-prune-all' => $dockerClient->pruneVolumes(true),
