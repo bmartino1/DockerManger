@@ -31,6 +31,8 @@ HTTPS_PORT="${DOCKERMANGER_HTTPS_PORT:-5443}"
 DATA_DIR="/data"
 CERT_DIR="${DATA_DIR}/certs"
 SSH_DIR="${DATA_DIR}/ssh"
+CONFIG_DIR="${DATA_DIR}/config"
+DOCKER_CLI_DIR="${DATA_DIR}/docker-cli"
 
 TLS_CERT="${CERT_DIR}/dockermanger.crt"
 TLS_KEY="${CERT_DIR}/dockermanger.key"
@@ -62,6 +64,8 @@ mkdir -p \
     "${DATA_DIR}" \
     "${CERT_DIR}" \
     "${SSH_DIR}" \
+    "${CONFIG_DIR}" \
+    "${DOCKER_CLI_DIR}" \
     /run/php \
     "${STACKS_DIR}"
 
@@ -303,6 +307,35 @@ if [ -f "${AUTH_FILE}" ] && ! runuser -u "${PHP_FPM_USER}" -- test -r "${AUTH_FI
     exit 1
 fi
 echo "[DockerManger] Authentication storage permissions ready (existing account preserved)."
+
+# ============================================================================
+# Persistent settings and Docker CLI state
+# ============================================================================
+# The bind-mounted /data root remains protected; only these application
+# subdirectories are owned by PHP-FPM. The CLI config is separate from /var/www.
+for writable_dir in "${CONFIG_DIR}" "${DOCKER_CLI_DIR}"; do
+    if [ -L "${writable_dir}" ]; then
+        echo "[DockerManger] ERROR: Refusing symlinked runtime directory: ${writable_dir}" >&2
+        exit 1
+    fi
+    chown "${PHP_FPM_USER}:${PHP_FPM_USER}" "${writable_dir}"
+    chmod 0700 "${writable_dir}"
+    if ! runuser -u "${PHP_FPM_USER}" -- test -w "${writable_dir}"; then
+        echo "[DockerManger] ERROR: ${writable_dir} is not writable by ${PHP_FPM_USER}." >&2
+        exit 1
+    fi
+done
+if [ -L "${CONFIG_DIR}/webui.json" ]; then
+    echo "[DockerManger] ERROR: Refusing symlinked WebUI configuration." >&2
+    exit 1
+fi
+if [ -f "${CONFIG_DIR}/webui.json" ]; then
+    chown "${PHP_FPM_USER}:${PHP_FPM_USER}" "${CONFIG_DIR}/webui.json"
+    chmod 0600 "${CONFIG_DIR}/webui.json"
+fi
+# PHP-FPM's existing clear_env=no makes this available to Docker CLI commands.
+export DOCKER_CONFIG="${DOCKER_CLI_DIR}"
+echo "[DockerManger] Docker CLI configuration: ${DOCKER_CONFIG}"
 
 # ============================================================================
 # Stack Storage
