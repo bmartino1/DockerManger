@@ -109,6 +109,11 @@ if ($view === 'apps') {
     require dirname(__DIR__) . '/templates/home.php';
     exit;
 }
+if ($view === 'images') {
+    $images = $docker['available'] ? $dockerClient->images() : [];
+    require dirname(__DIR__) . '/templates/images.php';
+    exit;
+}
 
 // Dashboard mount summaries come from docker inspect, but environment values are
 // deliberately not exposed because they frequently contain secrets.

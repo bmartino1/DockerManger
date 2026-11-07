@@ -82,3 +82,14 @@
 /* Application settings are contextual to Apps, not a primary navigation page. */
 .apps-settings-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:35px;padding:7px 12px;border:1px solid var(--dm-border);border-radius:9px;background:#172538;color:#cfe5fb!important;font-size:12px;font-weight:600;text-decoration:none}
 .apps-settings-link:hover{background:#263b54;color:#fff!important}
+
+/* Image management */
+.image-manager .modern-page-action>div>p{margin:6px 0 0;color:var(--dm-muted)}
+.image-inline-action{display:flex;align-items:flex-start;gap:8px}.image-inline-action input{min-width:360px}
+.image-table td,.image-table th{white-space:nowrap}.image-table td:first-child{white-space:normal;overflow-wrap:anywhere}
+.image-table .button{padding:7px 10px;font-size:12px}.image-table button:disabled{opacity:.45;cursor:not-allowed}
+.image-stack-row{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;align-items:center;gap:9px;padding:12px 0;border-bottom:1px solid var(--dm-border)}
+.image-stack-row:last-child{border-bottom:0}.image-stack-row div{display:flex;flex-direction:column;gap:3px}.image-stack-row small{color:var(--dm-muted)}
+.image-clean-actions{display:flex;gap:9px;flex-wrap:wrap}.image-danger-zone{border-color:#733846}.image-danger-zone p{color:var(--dm-muted);max-width:850px}
+.image-manager .operation-output{white-space:pre-wrap;max-height:340px;overflow:auto;margin-top:18px}
+@media(max-width:750px){.image-inline-action{flex-direction:column}.image-inline-action input{min-width:0;width:100%}.image-stack-row{grid-template-columns:1fr}.image-stack-row .button{width:100%}}
