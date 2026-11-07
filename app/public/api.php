@@ -55,6 +55,7 @@ try {
             'system-prune' => $dockerClient->systemPrune(),
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
             'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
+            'stack-webui-save' => $composeClient->saveWebUiUrl($stack, (string) ($_POST['webui_url'] ?? '')),
             'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
             'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? ''), (string) ($_POST['env'] ?? '')),
             default => throw new InvalidArgumentException('Unknown action.'),
