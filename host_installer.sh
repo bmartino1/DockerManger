@@ -794,6 +794,10 @@ install \
         --omit=dev \
         --no-audit \
         --no-fund
+
+    # A successful npm exit alone does not guarantee a functional PTY binding.
+    # node-pty is explicitly approved in package.json allowScripts.
+    node -e "require('node-pty'); require('ws'); require('composerize')"
 )
 
 install \
