@@ -151,7 +151,7 @@ $stateLabel = static fn(string $state): string => match ($state) {
 
                 <section class="panel webui-panel">
                     <div class="panel-heading"><div><span class="eyebrow">Stack shortcut</span><h2>WebUI</h2></div><span class="count-badge">Optional</span></div>
-                    <p class="panel-description">Set a browser URL for this application, for example <code>http://192.168.1.50:8080</code> or <code>https://app.example.com</code>. Saved as <code>WEBUI_URL</code> in this stack's <code>.env</code>; it does not change Compose ports or restart containers.</p>
+                    <p class="panel-description">Set a browser URL for this application, for example <code>http://192.168.1.50:8080</code> or <code>https://app.example.com</code>. Stored in DockerManger's own persistent settings (<code>/data/config/webui.json</code>), not in the stack's Compose file or <code>.env</code>. Saving does not restart containers.</p>
                     <form id="webui-editor" data-stack="<?= $escape($selected['name']) ?>" data-csrf="<?= $escape(csrf_token()) ?>">
                         <label for="webui-url">WebUI URL</label>
                         <div class="webui-editor-row">
