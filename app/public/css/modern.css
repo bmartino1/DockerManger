@@ -93,3 +93,14 @@
 .image-clean-actions{display:flex;gap:9px;flex-wrap:wrap}.image-danger-zone{border-color:#733846}.image-danger-zone p{color:var(--dm-muted);max-width:850px}
 .image-manager .operation-output{white-space:pre-wrap;max-height:340px;overflow:auto;margin-top:18px}
 @media(max-width:750px){.image-inline-action{flex-direction:column}.image-inline-action input{min-width:0;width:100%}.image-stack-row{grid-template-columns:1fr}.image-stack-row .button{width:100%}}
+
+/* Per-stack WebUI shortcuts, available from stack details and Apps. */
+.webui-panel .panel-description{margin:15px 18px;color:var(--dm-muted)}
+.webui-panel form{padding:0 18px 18px}
+.webui-panel form>label{display:block;margin-bottom:8px;font-weight:650}
+.webui-editor-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.webui-editor-row input{flex:1 1 290px;min-width:0}
+.modern-card .modern-card-main{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;color:#f0f7ff!important;text-decoration:none;padding:5px}
+.modern-card .modern-card-main:hover b{text-decoration:underline}
+.modern-card .modern-webui-button{font-size:12px;padding:9px 12px;width:100%;text-decoration:none;color:#d4eaff!important}
+.modern-card:has(.modern-webui-button){min-height:180px}
