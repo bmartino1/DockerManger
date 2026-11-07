@@ -261,23 +261,24 @@ DockerManger/
 
 ## Stack WebUI shortcuts
 
-Each managed Compose stack can have an optional one-click WebUI shortcut.
-Open **Stacks → select stack → WebUI**, enter a full `http://` or
-`https://` URL, then select **Save WebUI**. The link also appears as an
-**Open WebUI** button on that stack's card under **Apps**.
+Each managed stack can have an optional one-click WebUI shortcut.
+Go to **Stacks → select stack → WebUI**, set an HTTP or HTTPS URL, and
+select **Save WebUI**. Once configured, an **Open WebUI** button is
+also available on the corresponding **Apps** card.
 
-The shortcut is stored in the stack's conventional `.env` file:
+These links are **DockerManger settings**, not container labels, Docker
+environment variables or Compose interpolation. They are stored in
+`/data/config/webui.json` on the existing persistent `/data` mount.
+Nothing is written to the stack's `compose.yaml` or `.env`, and
+saving or clearing a shortcut does not restart containers.
 
-```dotenv
-WEBUI_URL=http://192.168.1.50:8080
-```
+Only full `http://` and `https://` URLs without embedded credentials
+are accepted. The link opens in a new browser tab and must be reachable
+from the browser itself. Removing the URL clears its shortcut.
 
-You can edit this value manually using the stack's **.env** editor as well.
-An empty value removes the shortcut. Only HTTP and HTTPS URLs are allowed;
-browser shortcuts open in a new tab. Saving the shortcut does not publish
-ports, proxy traffic, update or restart the stack. Use a hostname/IP address
-that is reachable **from your browser**, not a Docker-only service name.
-Keep the URL free of credentials and sensitive query parameters.
+Existing deployments that previously added `WEBUI_URL` to a stack's
+`.env` can remove that old entry manually; it is no longer used by
+DockerManger for WebUI shortcuts.
 
 ## Persistent data
 
