@@ -82,6 +82,12 @@
             if (urlInput) urlInput.value = adding ? '' : (linksFor()?.[labelSelect?.value] || (appSelect ? '' : urlInput.value));
         };
         if (appSelect) { appSelect.addEventListener('change', refreshLabels); refreshLabels(); }
+        else {
+            const savedLinks = {};
+            for (const option of (labelSelect?.options || [])) {
+                if (option.value !== '__new' && option.value !== 'WebUI') savedLinks[option.value] = '';
+            }
+        }
         labelSelect?.addEventListener('change', refreshUrl);
         editor.addEventListener('submit', async event => {
             event.preventDefault();
