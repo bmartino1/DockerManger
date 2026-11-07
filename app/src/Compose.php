@@ -92,6 +92,32 @@ final class Compose
         return $contents;
     }
 
+    /**
+     * Source of truth for managed services: the saved, resolved Compose file.
+     * No stack deployment is necessary for these labels to take effect in the UI.
+     * Return null on config failure so callers can explicitly fall back to runtime labels.
+     */
+    public function serviceWebUiLabels(string $name): ?array
+    {
+        $stack = $this->requireStack($name);
+        if (!$stack['valid']) return null;
+        $result = Command::run(
+            $this->dockerBinary,
+            ['compose', '-p', $stack['name'], '-f', $stack['composeFile'], 'config', '--format', 'json'],
+            $stack['path'], 20
+        );
+        if ($result['exitCode'] !== 0) return null;
+        $configuration = json_decode($result['stdout'], true);
+        if (!is_array($configuration) || !is_array($configuration['services'] ?? null)) return null;
+        $services = [];
+        foreach ($configuration['services'] as $service => $settings) {
+            if (!is_array($settings)) continue;
+            $labels = $settings['labels'] ?? [];
+            if (is_array($labels)) $services[(string)$service] = $labels;
+        }
+        return $services;
+    }
+
     /** Save only the conventional .env file inside the validated stack directory. */
     public function saveEnv(string $name, string $contents): array
     {
