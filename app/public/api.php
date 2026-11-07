@@ -62,7 +62,7 @@ try {
             'stack-save' => $composeClient->save($stack, (string) ($_POST['compose'] ?? '')),
             'stack-env-save' => $composeClient->saveEnv($stack, (string) ($_POST['env'] ?? '')),
             'app-webui-save' => ($app = $dockerClient->container($container)) !== null
-                ? $webUiSettings->saveApp($app, (string) ($_POST['webui_url'] ?? ''), (string) ($_POST['webui_label'] ?? 'WebUI'))
+                ? $webUiSettings->saveApp($app, (string) ($_POST['webui_url'] ?? ''))
                 : throw new InvalidArgumentException('Container not found.'),
             'composerize' => composerize((string) ($_POST['docker_run'] ?? '')),
             'stack-create' => $composeClient->create($stack, (string) ($_POST['compose'] ?? ''), (string) ($_POST['env'] ?? '')),
